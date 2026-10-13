@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#08110f">
+  <title>VELTRIX — Your next move starts here</title>
+  <meta name="description" content="A premium brokerage platform concept. Explore markets, manage your demo portfolio, and discover the VELTRIX experience.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css">
+  <!-- Optional: set this to the URL of the deployed VELTRIX Flask demo backend
+       (for example https://veltrix-demo.onrender.com). When set, the Log in,
+       Open an account and dashboard buttons link to the full-stack demo
+       instead of the in-page preview. Leave empty to keep the static concept. -->
+  <meta name="veltrix-app-url" content="">
+</head>
+<body>
+  <div class="demo-banner"><span class="pulse"></span> DEMO EXPERIENCE · Simulated market data · No real trading or money movement</div>
+  <header class="site-header">
+    <a class="brand" href="#home" aria-label="VELTRIX home"><span class="brand-mark">V</span><span>VELTRIX</span></a>
+    <button class="mobile-toggle" id="mobileToggle" aria-label="Open navigation" aria-expanded="false">☰</button>
+    <nav class="main-nav" id="mainNav">
+      <a href="#markets">Markets</a><a href="#experience">Platform</a><a href="#accounts">Accounts</a><a href="#learn">Education</a><a href="#support">Support</a>
+    </nav>
+    <div class="header-actions"><button class="btn btn-quiet" data-view="login">Log in</button><button class="btn btn-primary" data-view="register">Open an account <span>↗</span></button></div>
+  </header>
+
+  <main id="publicSite">
+    <section class="hero section-wrap" id="home">
+      <div class="hero-copy">
+        <div class="eyebrow"><span class="eyebrow-line"></span> A clearer way to explore the markets</div>
+        <h1>Your next move<br>starts <span>here.</span></h1>
+        <p class="hero-lede">Explore global markets with a trading experience designed around clarity, control, and confidence.</p>
+        <div class="hero-actions"><button class="btn btn-primary btn-large" data-view="register">Open an account <span>↗</span></button><a class="btn btn-outline btn-large" href="#markets">Explore the markets <span>↓</span></a></div>
+        <div class="hero-proof"><div class="avatar-stack"><i>V</i><i>✦</i><i>↗</i></div><span>A thoughtful experience for your next chapter.</span></div>
+      </div>
+      <div class="hero-visual">
+        <div class="visual-glow"></div>
+        <div class="floating-label label-top"><span class="live-dot"></span> MARKET OVERVIEW <b>DEMO</b></div>
+        <div class="chart-card">
+          <div class="chart-top"><div><span class="muted small">PORTFOLIO VALUE</span><div class="chart-value">$24,680.50</div></div><span class="positive">+4.28% ↗</span></div>
+          <div class="chart-period"><span class="selected">1D</span><span>1W</span><span>1M</span><span>3M</span><span>1Y</span></div>
+          <svg class="hero-chart" viewBox="0 0 520 190" preserveAspectRatio="none" role="img" aria-label="Illustrative portfolio chart">
+            <defs><linearGradient id="fill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#7ce5b2" stop-opacity=".24"/><stop offset="100%" stop-color="#7ce5b2" stop-opacity="0"/></linearGradient></defs>
+            <g class="chart-grid"><path d="M0 30H520M0 70H520M0 110H520M0 150H520"/></g>
+            <path d="M0 150 C24 140,30 154,48 130 S82 138,101 110 S135 128,157 95 S194 114,218 85 S248 104,274 67 S309 92,330 61 S365 76,389 52 S418 78,443 42 S482 57,520 19 L520 190 L0 190Z" fill="url(#fill)"/>
+            <path d="M0 150 C24 140,30 154,48 130 S82 138,101 110 S135 128,157 95 S194 114,218 85 S248 104,274 67 S309 92,330 61 S365 76,389 52 S418 78,443 42 S482 57,520 19" fill="none" stroke="#7ce5b2" stroke-width="3" vector-effect="non-scaling-stroke"/>
+            <circle cx="520" cy="19" r="5" fill="#7ce5b2" stroke="#0c1714" stroke-width="3"/>
+          </svg>
+          <div class="chart-axis"><span>09:00</span><span>11:00</span><span>13:00</span><span>15:00</span><span>Now</span></div>
+          <div class="chart-bottom"><div><span class="muted small">AVAILABLE BALANCE</span><strong>$8,240.00</strong></div><div><span class="muted small">OPEN POSITIONS</span><strong>04 <span class="tiny-arrow">↗</span></strong></div></div>
+        </div>
+        <div class="floating-label label-bottom"><span class="mini-icon">✦</span><div><strong>Stay in control</strong><small>Tools that put clarity first</small></div></div>
+        <div class="decor decor-one"></div><div class="decor decor-two"></div>
+      </div>
+    </section>
+
+    <section class="ticker-strip"><div class="ticker-intro">MARKET SNAPSHOT <span>DEMO</span></div><div class="ticker-item"><span>EUR/USD</span><b>1.0842</b><em class="positive">+0.18%</em></div><div class="ticker-item"><span>BTC/USD</span><b>$67,420</b><em class="positive">+1.42%</em></div><div class="ticker-item"><span>GOLD</span><b>$2,356.80</b><em class="negative">−0.24%</em></div><div class="ticker-item"><span>NASDAQ</span><b>18,214.6</b><em class="positive">+0.62%</em></div></section>
+
+    <section class="section-wrap section-pad" id="markets">
+      <div class="section-heading"><div><div class="eyebrow"><span class="eyebrow-line"></span> THE WORLD IN VIEW</div><h2>Find your place<br>in the <span>markets.</span></h2></div><div class="heading-side"><p>Explore a range of markets from one considered interface. All prices shown here are illustrative demo data.</p><a class="text-link" href="#" data-view="portal">View demo dashboard <span>↗</span></a></div></div>
+      <div class="market-grid">
+        <article class="market-card"><div class="market-icon">€</div><div class="market-card-head"><div><span class="muted small">FOREX</span><h3>EUR / USD</h3></div><span class="market-tag">FX</span></div><div class="market-price">1.0842 <span class="positive">+0.18%</span></div><svg class="spark" viewBox="0 0 200 45" preserveAspectRatio="none"><path d="M0 35 L20 28 L37 32 L54 18 L72 26 L91 13 L108 22 L126 8 L144 17 L161 11 L180 15 L200 4" fill="none" stroke="#72d9a7" stroke-width="2"/></svg><div class="market-foot"><span>Illustrative price</span><span>View market ↗</span></div></article>
+        <article class="market-card"><div class="market-icon bitcoin">₿</div><div class="market-card-head"><div><span class="muted small">CRYPTO</span><h3>BTC / USD</h3></div><span class="market-tag">24/7*</span></div><div class="market-price">$67,420 <span class="positive">+1.42%</span></div><svg class="spark" viewBox="0 0 200 45" preserveAspectRatio="none"><path d="M0 34 L20 37 L37 22 L54 28 L72 15 L91 24 L108 7 L126 16 L144 5 L161 13 L180 4 L200 8" fill="none" stroke="#72d9a7" stroke-width="2"/></svg><div class="market-foot"><span>Illustrative price</span><span>View market ↗</span></div></article>
+        <article class="market-card"><div class="market-icon gold">Au</div><div class="market-card-head"><div><span class="muted small">COMMODITIES</span><h3>Gold / USD</h3></div><span class="market-tag">METAL</span></div><div class="market-price">$2,356.80 <span class="negative">−0.24%</span></div><svg class="spark" viewBox="0 0 200 45" preserveAspectRatio="none"><path d="M0 9 L20 15 L37 11 L54 25 L72 17 L91 29 L108 19 L126 27 L144 23 L161 34 L180 25 L200 38" fill="none" stroke="#d8b86c" stroke-width="2"/></svg><div class="market-foot"><span>Illustrative price</span><span>View market ↗</span></div></article>
+        <article class="market-card"><div class="market-icon index">↗</div><div class="market-card-head"><div><span class="muted small">INDICES</span><h3>NASDAQ 100</h3></div><span class="market-tag">INDEX</span></div><div class="market-price">18,214.6 <span class="positive">+0.62%</span></div><svg class="spark" viewBox="0 0 200 45" preserveAspectRatio="none"><path d="M0 38 L20 29 L37 34 L54 21 L72 26 L91 11 L108 18 L126 9 L144 16 L161 5 L180 12 L200 2" fill="none" stroke="#72d9a7" stroke-width="2"/></svg><div class="market-foot"><span>Illustrative price</span><span>View market ↗</span></div></article>
+      </div>
+      <p class="footnote">*Market hours vary by instrument and venue. Market names and values are for demonstration only and are not executable quotes or investment advice.</p>
+    </section>
+
+    <section class="feature-band" id="experience"><div class="section-wrap feature-layout"><div><div class="eyebrow"><span class="eyebrow-line"></span> BUILT AROUND YOU</div><h2>More clarity.<br>Less <span>noise.</span></h2><p class="feature-copy">A considered trading experience gives you room to focus on what matters: understanding the market, managing your activity, and making informed decisions.</p><button class="btn btn-primary" data-view="portal">Explore the platform <span>↗</span></button></div><div class="feature-list"><div class="feature-row"><span class="feature-number">01</span><div><h3>One considered view</h3><p>Bring your watchlist, account overview, and market context into a single clear workspace.</p></div><span class="feature-symbol">↗</span></div><div class="feature-row"><span class="feature-number">02</span><div><h3>Information, not noise</h3><p>Thoughtful visual hierarchy helps make complex information easier to navigate.</p></div><span class="feature-symbol">⌁</span></div><div class="feature-row"><span class="feature-number">03</span><div><h3>Support with a human touch</h3><p>Clear support pathways designed to connect customers with the right help.</p></div><span class="feature-symbol">✳</span></div><div class="feature-row"><span class="feature-number">04</span><div><h3>Security by design</h3><p>Security and privacy are foundational requirements, not decorative promises.</p></div><span class="feature-symbol">◇</span></div></div></div></section>
+
+    <section class="section-wrap section-pad" id="accounts"><div class="center-heading"><div class="eyebrow"><span class="eyebrow-line"></span> YOUR STARTING POINT</div><h2>An account for your <span>journey.</span></h2><p>Explore a sample account layout. Terms, fees, eligibility, and availability must be confirmed for the actual business before launch.</p></div><div class="account-grid"><article class="account-card"><span class="account-label">01 / EXPLORE</span><h3>Essential</h3><p>For customers who value a clear, straightforward starting point.</p><ul><li>Account overview</li><li>Market watchlist</li><li>Learning resources</li></ul><button class="btn btn-outline full" data-view="register">Explore account <span>↗</span></button></article><article class="account-card account-featured"><span class="account-label">02 / FLEXIBLE</span><div class="popular-pill">SAMPLE OPTION</div><h3>Advanced</h3><p>More workspace tools for a more detailed market view.</p><ul><li>Everything in Essential</li><li>Expanded chart layouts</li><li>Custom watchlists</li></ul><button class="btn btn-primary full" data-view="register">Explore account <span>↗</span></button></article><article class="account-card"><span class="account-label">03 / PERSONAL</span><h3>Dedicated</h3><p>A concept for customers who need a more guided service.</p><ul><li>Account overview</li><li>Support ticket history</li><li>Configurable preferences</li></ul><button class="btn btn-outline full" data-view="register">Explore account <span>↗</span></button></article></div></section>
+
+    <section class="education-section" id="learn"><div class="section-wrap education-layout"><div><div class="eyebrow"><span class="eyebrow-line"></span> KNOWLEDGE FIRST</div><h2>Understand more.<br>Move with <span>care.</span></h2><p>Financial markets involve risk. Build your understanding with clear educational content before making financial decisions.</p><a class="text-link" href="#support">Explore learning resources <span>↗</span></a></div><div class="learning-cards"><article class="learn-card"><div class="learn-art art-one"><span>01</span><div class="art-lines"></div></div><div class="learn-meta">THE BASICS · 6 MIN READ</div><h3>Getting to know the markets</h3><p>A beginner-friendly overview of market types and common terminology.</p><a href="#support" class="text-link">Read overview ↗</a></article><article class="learn-card"><div class="learn-art art-two"><span>02</span><div class="risk-dial">!</div></div><div class="learn-meta">RISK AWARENESS · 4 MIN READ</div><h3>Risk is part of the picture</h3><p>Learn about volatility, leverage, and why losses are possible.</p><a href="#support" class="text-link">Read overview ↗</a></article></div></div></section>
+
+    <section class="support-cta section-wrap" id="support"><div class="support-orb">✳</div><div><div class="eyebrow"><span class="eyebrow-line"></span> HERE TO HELP</div><h2>Real questions deserve<br><span>real people.</span></h2><p>Explore the demo support centre and see how a customer conversation could work.</p></div><button class="btn btn-primary btn-large" data-view="portal-support">Visit support centre <span>↗</span></button></section>
+  </main>
+
+  <main id="appView" class="app-view hidden"></main>
+
+  <footer class="site-footer"><div class="section-wrap footer-top"><a class="brand" href="#home"><span class="brand-mark">V</span><span>VELTRIX</span></a><p>A considered platform concept for exploring the markets.</p><div class="footer-links"><a href="#markets">Markets</a><a href="#experience">Platform</a><a href="#support">Support</a><a href="#" data-view="login">Log in</a></div></div><div class="section-wrap footer-bottom"><span>© 2026 VELTRIX · Concept website</span><span>Demo only · Not a financial service offer</span></div><div class="section-wrap risk-disclaimer">Risk disclosure: Trading and investing involve risk and may not be suitable for everyone. You may lose some or all of your invested capital. This concept website is not a licensed brokerage service, does not provide financial advice, and does not execute trades or process payments.</div></footer>
+
+  <section class="live-chat-panel hidden" id="liveChatPanel" aria-label="VELTRIX human support chat" aria-hidden="true">
+    <div class="live-chat-header"><div class="live-agent-avatar">V</div><div class="live-agent-copy"><strong>VELTRIX Support Preview</strong><span><i class="live-chat-dot"></i> Demo preview — not staffed</span></div><button type="button" class="live-chat-close" id="liveChatClose" aria-label="Close chat">×</button></div>
+    <div class="live-chat-notice">Demo preview: no human agent is connected and messages are not delivered. A live chat provider and staffed support team must be connected before launch.</div>
+    <div class="live-chat-messages" id="liveChatMessages" aria-live="polite"><div class="live-chat-message agent-message"><span>VELTRIX SUPPORT</span>Hi there! Welcome to VELTRIX. How can we help you today?</div></div>
+    <form class="live-chat-form" id="liveChatForm"><label class="sr-only" for="liveChatInput">Your message</label><input id="liveChatInput" name="message" maxlength="500" placeholder="Type your message…" autocomplete="off" required><button type="submit" aria-label="Send message">➤</button></form>
+    <div class="live-chat-footnote">Never share passwords, one-time codes, or payment card details in chat.</div>
+  </section>
+  <button class="live-chat-launcher" id="liveChatLauncher" type="button" aria-controls="liveChatPanel" aria-expanded="false"><span class="launcher-icon">▤</span><span><strong>Support Preview</strong><small>Demo only — not a live chat</small></span><i class="live-chat-dot"></i></button>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="./app.js"></script>
+</body>
+</html>

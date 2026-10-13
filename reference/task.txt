@@ -1,0 +1,25 @@
+Approved. Proceed with the plan, with the following requirements:
+
+**1. Restore the original design first.**
+Use the root `index.html`, `styles.css`, and `app.js` as the authoritative references for VELTRIX's original appearance, content, layout, and interactions. The actual stylesheet is `styles.css`, not `style.css.
+
+Port the original styles into `frontend/src/styles.css`, preserving the original design tokens, DM Sans and Manrope typography, colors, spacing, responsive behavior, animations, component styling, and reduced-motion support. Add the required Google Fonts imports and theme-color metadata to the React frontend.
+
+**2. Rebuild the React UI faithfully.**
+Replace the generic React hero and mismatched layout with React components that reproduce the original VELTRIX page structure, content, copy, and section order. Preserve the demo banner, sticky header, hero and chart, ticker, market cards, feature band, account cards, education section, support CTA, footer, risk disclaimer, live-chat preview, and toast.
+
+Keep the original visual identity consistent across the public landing page and the authenticated application views. Where the original `app.js` defines additional dashboard, authentication, or admin views, inspect and migrate the relevant designs instead of inventing a generic interface.
+
+**3. Preserve the backend architecture.**
+Keep Django + Django REST Framework as the backend and React as the main frontend. Use existing API endpoints where appropriate. Do not replace React with Django templates or rebuild the backend unnecessarily.
+
+**4. Handle missing API functionality honestly.**
+Do not pretend that orders, watchlists, KYC, wallet operations, or admin ticket management are backed by a working API when they are not. Preserve clearly identified demo-only behavior where appropriate, and document the limitations. Do not submit real trades or imply real financial activity.
+
+**5. Protect existing work.**
+Do not delete the original design files. Remove dead Flask code only in a separate, explicitly approved cleanup step; do not combine unnecessary cleanup with this design migration. Preserve existing working functionality and the demo disclaimers.
+
+**6. Verify before declaring completion.**
+Run the frontend build and available tests. Compare the React frontend against the original design at desktop, 980px, 740px, and 420px widths. Check navigation, responsiveness, typography, colors, section order, API integration, and console/build errors. Report what passed, what failed, and any remaining limitations.
+
+Work incrementally. Show me the files changed and a summary of the changes. Do not claim pixel-perfect fidelity or successful tests unless you have actually verified them.
