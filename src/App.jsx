@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import axios from 'axios'
+import React, { useCallback, useEffect, useMemo, useState, useContext } from 'react'
+import api from './api'
 import DemoBanner from './components/DemoBanner'
 import SiteHeader from './components/SiteHeader'
 import Landing from './components/Landing'
@@ -10,8 +10,7 @@ import AuthView from './components/AuthView'
 import AppViews from './components/AppViews'
 import AdminViews from './components/AdminViews'
 import { DEFAULT_MARKET_ROWS, marketRowsFromApi } from './data'
-
-const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'
+import { AuthContext } from './contexts/AuthContext'
 
 const AUTH_VIEWS = ['login', 'register', 'forgot']
 const APP_VIEWS = [
@@ -26,12 +25,12 @@ export default function App() {
   const [toast, setToast] = useState(null)
   const [authMode, setAuthMode] = useState('login')
   const [authError, setAuthError] = useState('')
-  const [token, setToken] = useState(() => localStorage.getItem('veltrix_token') || '')
   const [marketRows, setMarketRows] = useState(DEFAULT_MARKET_ROWS)
   const [marketLoading, setMarketLoading] = useState(true)
   const [dashboard, setDashboard] = useState(null)
-  const [profile, setProfile] = useState(null)
   const [tickets, setTickets] = useState([])
+
+  const { token, login, register, logout, profile } = useContext(AuthContext)
 
   const showToast = useCallback((message) => setToast({ id: Date.now(), message }), [])
 
@@ -49,19 +48,16 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [])
 
-  const authHeaders = useMemo(
-    () => ({ headers: { Authorization: token ? `Bearer ${token}` : undefined } }),
-    [token]
-  )
-
   useEffect(() => {
     let active = true
-    axios.get(`${API_BASE}/api/market/`)
+    api.get('/market/')
       .then((res) => {
         const quotes = res.data?.data || []
         if (active && quotes.length) setMarketRows(marketRowsFromApi(quotes))
       })
-      .catch((error) => console.error('market load failed', error))
+      .catch((error) => {
+        console.error('market load failed', error)
+      })
       .finally(() => { if (active) setMarketLoading(false) })
     return () => { active = false }
   }, [])
@@ -69,22 +65,18 @@ export default function App() {
   useEffect(() => {
     if (!token) {
       setDashboard(null)
-      setProfile(null)
       setTickets([])
       return undefined
     }
     let active = true
-    axios.get(`${API_BASE}/api/dashboard/`, authHeaders)
+    api.get('/dashboard/')
       .then((res) => { if (active) setDashboard(res.data) })
       .catch((error) => console.error('dashboard load failed', error))
-    axios.get(`${API_BASE}/api/profile/`, authHeaders)
-      .then((res) => { if (active) setProfile(res.data) })
-      .catch((error) => console.error('profile load failed', error))
-    axios.get(`${API_BASE}/api/support/`, authHeaders)
+    api.get('/support/')
       .then((res) => { if (active) setTickets(res.data || []) })
       .catch((error) => console.error('support load failed', error))
     return () => { active = false }
-  }, [token, authHeaders])
+  }, [token])
 
   const handleAuth = async (event) => {
     event.preventDefault()
@@ -93,21 +85,15 @@ export default function App() {
     const email = String(form.get('email') || '').trim()
     const password = String(form.get('password') || '')
     const fullName = String(form.get('fullName') || '').trim()
+    const remember = Boolean(form.get('remember'))
 
     try {
       if (authMode === 'register') {
         const [first_name, ...rest] = fullName.split(' ')
-        await axios.post(`${API_BASE}/api/auth/register/`, {
-          email,
-          password,
-          first_name,
-          last_name: rest.join(' '),
-        })
+        await register({ email, password, first_name, last_name: rest.join(' '), remember })
+      } else {
+        await login({ email, password, remember })
       }
-      const loginResponse = await axios.post(`${API_BASE}/api/auth/token/`, { username: email, password })
-      const access = loginResponse.data.access
-      localStorage.setItem('veltrix_token', access)
-      setToken(access)
       showToast(authMode === 'register' ? 'Demo account created. Welcome to VELTRIX.' : 'Signed in to the VELTRIX demo.')
       navigate('portal')
     } catch (error) {
@@ -116,7 +102,7 @@ export default function App() {
         data?.detail
         || data?.message
         || (Array.isArray(data?.email) ? data.email[0] : null)
-        || 'Authentication failed. Check your details and try again.'
+        || (error?.message ? String(error.message) : 'Authentication failed. Check your details and try again.')
       )
     }
   }
@@ -128,7 +114,7 @@ export default function App() {
 
   const handleCreateTicket = async ({ subject, message }) => {
     try {
-      const res = await axios.post(`${API_BASE}/api/support/`, { subject, message }, authHeaders)
+      const res = await api.post('/support/', { subject, message })
       setTickets((prev) => [res.data, ...prev])
       showToast('Demo ticket created on the backend.')
       return true
@@ -152,6 +138,7 @@ export default function App() {
     onNavigate: navigate,
     showToast,
     onCreateTicket: handleCreateTicket,
+    logout,
   }
 
   let appContent = null

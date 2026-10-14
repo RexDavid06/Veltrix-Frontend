@@ -71,6 +71,14 @@ export default function AuthView({ mode, onSubmit, error, onNavigate }) {
             autoComplete={register ? 'new-password' : 'current-password'}
           />
         </div>
+        {!register && (
+          <div className="form-group">
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <input id="remember" name="remember" type="checkbox" />
+              <span style={{ fontSize: 13, color: 'var(--muted)' }}>Remember this device</span>
+            </label>
+          </div>
+        )}
         {register ? (
           <label style={{ fontSize: 10, color: '#9aada0', display: 'flex', gap: 9, alignItems: 'flex-start' }}>
             <input type="checkbox" required style={{ marginTop: 3 }} /> I agree to the demo terms and privacy notice.
