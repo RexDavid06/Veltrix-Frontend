@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import axios from 'axios'
+import api, { API_ROOT, setLogoutHandler } from './api'
 import DemoBanner from './components/DemoBanner'
 import SiteHeader from './components/SiteHeader'
 import Landing from './components/Landing'
@@ -10,12 +10,6 @@ import AuthView from './components/AuthView'
 import AppViews from './components/AppViews'
 import AdminViews from './components/AdminViews'
 import { DEFAULT_MARKET_ROWS, marketRowsFromApi } from './data'
-
-// Read configured API base and normalize so the code works whether the env
-// value includes the trailing '/api' or not. This avoids double '/api/api'.
-const RAW_API = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'
-let API_ROOT = RAW_API.replace(/\/$/, '')
-if (!API_ROOT.endsWith('/api')) API_ROOT = `${API_ROOT}/api`
 
 const AUTH_VIEWS = ['login', 'register', 'forgot']
 const APP_VIEWS = [
@@ -58,9 +52,35 @@ export default function App() {
     [token]
   )
 
+  const clearStoredTokens = useCallback(() => {
+    try {
+      sessionStorage.removeItem('veltrix_token')
+      sessionStorage.removeItem('veltrix_refresh')
+      localStorage.removeItem('veltrix_token')
+      localStorage.removeItem('veltrix_refresh')
+    } catch (e) {
+      // ignore storage issues
+    }
+  }, [])
+
+  const logout = useCallback((message = 'Signed out.') => {
+    clearStoredTokens()
+    setToken('')
+    setDashboard(null)
+    setProfile(null)
+    setTickets([])
+    setAuthError(message)
+    navigate('login')
+    showToast(message)
+  }, [clearStoredTokens, navigate, showToast])
+
+  useEffect(() => {
+    setLogoutHandler(logout)
+  }, [logout])
+
   useEffect(() => {
     let active = true
-    axios.get(`${API_ROOT}/market/`)
+    api.get(`${API_ROOT}/market/`)
       .then((res) => {
         const quotes = res.data?.data || []
         if (active && quotes.length) setMarketRows(marketRowsFromApi(quotes))
@@ -77,16 +97,26 @@ export default function App() {
       setTickets([])
       return undefined
     }
+
     let active = true
-    axios.get(`${API_ROOT}/dashboard/`, authHeaders)
+    api.get(`${API_ROOT}/dashboard/`, authHeaders)
       .then((res) => { if (active) setDashboard(res.data) })
-      .catch((error) => console.error('dashboard load failed', error))
-    axios.get(`${API_ROOT}/profile/`, authHeaders)
+      .catch((error) => {
+        console.error('dashboard load failed', error)
+      })
+
+    api.get(`${API_ROOT}/profile/`, authHeaders)
       .then((res) => { if (active) setProfile(res.data) })
-      .catch((error) => console.error('profile load failed', error))
-    axios.get(`${API_ROOT}/support/`, authHeaders)
+      .catch((error) => {
+        console.error('profile load failed', error)
+      })
+
+    api.get(`${API_ROOT}/support/`, authHeaders)
       .then((res) => { if (active) setTickets(res.data || []) })
-      .catch((error) => console.error('support load failed', error))
+      .catch((error) => {
+        console.error('support load failed', error)
+      })
+
     return () => { active = false }
   }, [token, authHeaders])
 
@@ -102,22 +132,24 @@ export default function App() {
     try {
       if (authMode === 'register') {
         const [first_name, ...rest] = fullName.split(' ')
-        await axios.post(`${API_ROOT}/auth/register/`, {
+        await api.post(`${API_ROOT}/auth/register/`, {
           email,
           password,
           first_name,
           last_name: rest.join(' '),
         })
       }
-      const loginResponse = await axios.post(`${API_ROOT}/auth/token/`, { username: email, password })
+
+      const loginResponse = await api.post(`${API_ROOT}/auth/token/`, { username: email, password })
       const access = loginResponse.data.access
       const refresh = loginResponse.data.refresh
+
       if (!access) throw new Error('No access token returned')
 
-      // Store tokens session-first; persist to localStorage only if "Remember this device" is checked
       try {
         sessionStorage.setItem('veltrix_token', access)
         if (refresh) sessionStorage.setItem('veltrix_refresh', refresh)
+
         if (remember) {
           localStorage.setItem('veltrix_token', access)
           if (refresh) localStorage.setItem('veltrix_refresh', refresh)
@@ -126,7 +158,6 @@ export default function App() {
           localStorage.removeItem('veltrix_refresh')
         }
       } catch (err) {
-        // storage error - proceed without persistence
         console.error('storage error', err)
       }
 
@@ -151,7 +182,7 @@ export default function App() {
 
   const handleCreateTicket = async ({ subject, message }) => {
     try {
-      const res = await axios.post(`${API_ROOT}/support/`, { subject, message }, authHeaders)
+      const res = await api.post(`${API_ROOT}/support/`, { subject, message }, authHeaders)
       setTickets((prev) => [res.data, ...prev])
       showToast('Demo ticket created on the backend.')
       return true
@@ -175,6 +206,7 @@ export default function App() {
     onNavigate: navigate,
     showToast,
     onCreateTicket: handleCreateTicket,
+    onLogout: logout,
   }
 
   let appContent = null
