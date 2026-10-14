@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 
 const AUTO_REPLY = 'Thanks for your message. This chat preview is not connected to a live human agent yet. Please do not share sensitive account or payment information.'
+const TELEGRAM_LINK = import.meta.env.VITE_TELEGRAM_LINK || 'https://t.me/+07074195975'
 
 export default function LiveChat() {
   const [open, setOpen] = useState(false)
@@ -42,12 +43,12 @@ export default function LiveChat() {
         <div className="live-chat-header">
           <div className="live-agent-avatar">V</div>
           <div className="live-agent-copy">
-            <strong>VELTRIX Support Preview</strong>
-            <span><i className="live-chat-dot" /> Demo preview — not staffed</span>
+            <strong>VELTRIX Support</strong>
+            <span><i className="live-chat-dot" /> In-app chat and Telegram support</span>
           </div>
           <button type="button" className="live-chat-close" id="liveChatClose" aria-label="Close chat" onClick={() => setOpen(false)}>×</button>
         </div>
-        <div className="live-chat-notice">Demo preview: no human agent is connected and messages are not delivered. A live chat provider and staffed support team must be connected before launch.</div>
+        <div className="live-chat-notice">Need help fast? Use the in-app chat below or continue with Telegram support.</div>
         <div className="live-chat-messages" id="liveChatMessages" aria-live="polite" ref={messagesRef}>
           {messages.map((message, index) => (
             <div className={`live-chat-message ${message.user ? 'user-message' : 'agent-message'}`} key={index}>
@@ -70,7 +71,32 @@ export default function LiveChat() {
           />
           <button type="submit" aria-label="Send message">➤</button>
         </form>
-        <div className="live-chat-footnote">Never share passwords, one-time codes, or payment card details in chat.</div>
+        <div className="live-chat-footnote">
+          <div style={{ marginBottom: '8px' }}>Need another way to reach us?</div>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <button type="button" onClick={() => setOpen(true)} style={{ padding: '6px 10px', borderRadius: '999px', border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.04)', color: '#fff', cursor: 'pointer' }}>
+              In-app chat
+            </button>
+            <a
+              href={TELEGRAM_LINK}
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '6px 10px',
+                borderRadius: '999px',
+                border: '1px solid rgba(255,255,255,0.15)',
+                background: 'rgba(255,255,255,0.04)',
+                color: '#fff',
+                textDecoration: 'none',
+              }}
+            >
+              Telegram
+            </a>
+          </div>
+        </div>
       </section>
       <button
         className="live-chat-launcher"
@@ -81,7 +107,7 @@ export default function LiveChat() {
         onClick={() => setOpen((prev) => !prev)}
       >
         <span className="launcher-icon">▤</span>
-        <span><strong>Support Preview</strong><small>Demo only — not a live chat</small></span>
+        <span><strong>Support</strong><small>Chat or Telegram</small></span>
         <i className="live-chat-dot" />
       </button>
     </>
