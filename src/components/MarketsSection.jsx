@@ -1,26 +1,3 @@
-import React from 'react'
-
-const CARDS = [
-  {
-    icon: '€',
-    iconClass: '',
-    asset: 'FOREX',
-    title: 'EUR / USD',
-    tag: 'FX',
-    price: '1.0842',
-    change: '+0.18%',
-    tone: 'positive',
-    stroke: '#72d9a7',
-    spark: 'M0 35 L20 28 L37 32 L54 18 L72 26 L91 13 L108 22 L126 8 L144 17 L161 11 L180 15 L200 4',
-  },
-  {
-    icon: '₿',
-    iconClass: 'bitcoin',
-    asset: 'CRYPTO',
-    title: 'BTC / USD',
-    tag: '24/7*',
-    price: '$67,420',
-    change: '+1.42%',
     tone: 'positive',
     stroke: '#72d9a7',
     spark: 'M0 34 L20 37 L37 22 L54 28 L72 15 L91 24 L108 7 L126 16 L144 5 L161 13 L180 4 L200 8',
@@ -60,9 +37,9 @@ export default function MarketsSection({ onNavigate }) {
           <h2>Find your place<br />in the <span>markets.</span></h2>
         </div>
         <div className="heading-side">
-          <p>Explore a range of markets from one considered interface. All prices shown here are illustrative demo data.</p>
+          <p>Explore a range of markets from one considered interface. All prices shown here are illustrative data.</p>
           <a className="text-link" href="#" data-view="portal" onClick={(event) => { event.preventDefault(); onNavigate('portal') }}>
-            View demo dashboard <span>↗</span>
+            View dashboard <span>↗</span>
           </a>
         </div>
       </div>
@@ -82,7 +59,7 @@ export default function MarketsSection({ onNavigate }) {
           </article>
         ))}
       </div>
-      <p className="footnote">*Market hours vary by instrument and venue. Market names and values are for demonstration only and are not executable quotes or investment advice.</p>
+      <p className="footnote">*Market hours vary by instrument and venue. Market names and values are for illustrative purposes and are not executable quotes or investment advice.</p>
     </section>
   )
 }

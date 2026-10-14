@@ -27,7 +27,7 @@ export default function LiveChat() {
     setMessages((prev) => [
       ...prev,
       { label: 'YOU', text: message, user: true },
-      { label: 'DEMO AUTO-REPLY', text: AUTO_REPLY, user: false },
+      { label: 'AUTO-REPLY', text: AUTO_REPLY, user: false },
     ])
     setValue('')
   }
@@ -74,41 +74,14 @@ export default function LiveChat() {
         <div className="live-chat-footnote">
           <div style={{ marginBottom: '8px' }}>Need another way to reach us?</div>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            <button type="button" onClick={() => setOpen(true)} style={{ padding: '6px 10px', borderRadius: '999px', border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.04)', color: '#fff', cursor: 'pointer' }}>
-              In-app chat
-            </button>
-            <a
-              href={TELEGRAM_LINK}
-              target="_blank"
-              rel="noreferrer"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '6px 10px',
-                borderRadius: '999px',
-                border: '1px solid rgba(255,255,255,0.15)',
-                background: 'rgba(255,255,255,0.04)',
-                color: '#fff',
-                textDecoration: 'none',
-              }}
-            >
-              Telegram
-            </a>
+            <a className="btn btn-quiet" href={TELEGRAM_LINK} target="_blank" rel="noreferrer">Telegram</a>
+            <a className="btn btn-outline" href="#support" onClick={() => setOpen(false)}>Support centre</a>
           </div>
         </div>
       </section>
-      <button
-        className="live-chat-launcher"
-        id="liveChatLauncher"
-        type="button"
-        aria-controls="liveChatPanel"
-        aria-expanded={open}
-        onClick={() => setOpen((prev) => !prev)}
-      >
-        <span className="launcher-icon">▤</span>
-        <span><strong>Support</strong><small>Chat or Telegram</small></span>
-        <i className="live-chat-dot" />
+
+      <button type="button" className="live-chat-toggle" aria-expanded={open} aria-controls="liveChatPanel" onClick={() => setOpen((o) => !o)}>
+        💬
       </button>
     </>
   )

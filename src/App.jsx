@@ -9,7 +9,7 @@ import Toast from './components/Toast'
 import AuthView from './components/AuthView'
 import AppViews from './components/AppViews'
 import AdminViews from './components/AdminViews'
-import { DEFAULT_MARKET_ROWS, marketRowsFromApi } from './data'
+import { DEFAULT_MARKET_ROWS, marketRowsFromApi, formatPrice, badgeFor } from './data'
 
 const AUTH_VIEWS = ['login', 'register', 'forgot']
 const APP_VIEWS = [
@@ -84,8 +84,29 @@ export default function App() {
       .then((res) => {
         const quotes = res.data?.data || []
         if (active && quotes.length) setMarketRows(marketRowsFromApi(quotes))
+        // if backend returns no data we fall through to fallback
       })
-      .catch((error) => console.error('market load failed', error))
+      .catch(async (error) => {
+        console.error('market load failed, falling back to public API', error)
+        try {
+          const cg = await fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&per_page=10&page=1')
+          if (!active) return
+          if (cg.ok) {
+            const data = await cg.json()
+            const fallbackRows = data.map((c) => [
+              `${(c.symbol || '').toUpperCase()}/USD`,
+              c.name || '',
+              formatPrice(c.current_price || 0),
+              (c.price_change_percentage_24h >= 0 ? `+${c.price_change_percentage_24h.toFixed(2)}%` : `${c.price_change_percentage_24h?.toFixed(2)}%`),
+              (c.price_change_percentage_24h >= 0 ? 'positive' : 'negative'),
+              badgeFor(c.symbol || '', c.name || ''),
+            ])
+            setMarketRows(fallbackRows)
+          }
+        } catch (e) {
+          console.error('fallback market load failed', e)
+        }
+      })
       .finally(() => { if (active) setMarketLoading(false) })
     return () => { active = false }
   }, [])
@@ -162,7 +183,7 @@ export default function App() {
       }
 
       setToken(access)
-      showToast(authMode === 'register' ? 'Demo account created. Welcome to VELTRIX.' : 'Signed in to the VELTRIX demo.')
+      showToast(authMode === 'register' ? 'Account created. Welcome to VELTRIX.' : 'Signed in to VELTRIX preview.')
       navigate('portal')
     } catch (error) {
       const data = error?.response?.data
@@ -177,18 +198,18 @@ export default function App() {
 
   const handleForgot = (event) => {
     event.preventDefault()
-    showToast('Demo only — no recovery email was sent.')
+    showToast('Preview only — no recovery email was sent.')
   }
 
   const handleCreateTicket = async ({ subject, message }) => {
     try {
       const res = await api.post(`${API_ROOT}/support/`, { subject, message }, authHeaders)
       setTickets((prev) => [res.data, ...prev])
-      showToast('Demo ticket created on the backend.')
+      showToast('Sample ticket created on the backend.')
       return true
     } catch (error) {
       console.error('support create failed', error)
-      showToast('Could not create the demo ticket.')
+      showToast('Could not create the sample ticket.')
       return false
     }
   }

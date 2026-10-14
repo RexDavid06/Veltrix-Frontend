@@ -15,9 +15,9 @@ export function renderMarketRows(rows, onToast) {
       <button
         className="btn btn-outline"
         style={{ padding: '6px 9px' }}
-        data-toast="Demo market action only"
+        data-toast="Market action preview only"
         key="action"
-        onClick={() => onToast('Demo market action only')}
+        onClick={() => onToast('Market action preview only')}
       >
         View
       </button>
@@ -48,7 +48,7 @@ export function MarketTable({ rows = [], onToast = () => {} }) {
         />
       </div>
       <div id="marketTable">
-        <DataTable headings={['INSTRUMENT', 'DEMO PRICE', 'CHANGE', 'ACTION']} rows={renderMarketRows(filtered, onToast)} />
+        <DataTable headings={["INSTRUMENT", "PRICE", "CHANGE", "ACTION"]} rows={renderMarketRows(filtered, onToast)} />
       </div>
       <div className="mobile-note">Swipe horizontally to view all columns.</div>
     </div>
@@ -56,5 +56,5 @@ export function MarketTable({ rows = [], onToast = () => {} }) {
 }
 
 export function MarketRowsTable({ rows = [], onToast = () => {} }) {
-  return <DataTable headings={['INSTRUMENT', 'DEMO PRICE', 'CHANGE', 'ACTION']} rows={renderMarketRows(rows, onToast)} />
+  return <DataTable headings={['INSTRUMENT', 'PRICE', 'CHANGE', 'ACTION']} rows={renderMarketRows(rows, onToast)} />
 }
