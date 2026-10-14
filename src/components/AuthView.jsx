@@ -4,17 +4,17 @@ const COPY = {
   login: {
     title: 'Welcome back',
     desc: 'Sign in to preview your workspace.',
-    submit: 'Sign in to demo',
+    submit: 'Sign in',
     switchText: 'New to VELTRIX?',
-    switchAction: 'Create a demo account',
+    switchAction: 'Create an account',
     switchTarget: 'register',
   },
   register: {
     title: 'Create your account',
-    desc: 'Explore the VELTRIX demo experience.',
-    submit: 'Create demo account',
+    desc: 'Explore the VELTRIX preview experience.',
+    submit: 'Create account',
     switchText: 'Already exploring?',
-    switchAction: 'Log in preview',
+    switchAction: 'Sign in',
     switchTarget: 'login',
   },
 }
@@ -46,7 +46,7 @@ export default function AuthView({ mode, onSubmit, error, onNavigate }) {
     <>
       <div className="back-link" data-view="home" onClick={() => onNavigate('home')}>← Back to VELTRIX</div>
       <form className="form-card" id="authForm" onSubmit={onSubmit}>
-        <div className="eyebrow"><span className="eyebrow-line" /> VELTRIX DEMO</div>
+        <div className="eyebrow"><span className="eyebrow-line" /> VELTRIX Preview</div>
         <h2>{copy.title}</h2>
         <p>{copy.desc}</p>
         {register && (
@@ -81,7 +81,7 @@ export default function AuthView({ mode, onSubmit, error, onNavigate }) {
         )}
         {register ? (
           <label style={{ fontSize: 10, color: '#9aada0', display: 'flex', gap: 9, alignItems: 'flex-start' }}>
-            <input type="checkbox" required style={{ marginTop: 3 }} /> I agree to the demo terms and privacy notice.
+            <input type="checkbox" required style={{ marginTop: 3 }} /> I agree to the terms and privacy notice.
           </label>
         ) : (
           <div style={{ textAlign: 'right' }}>
@@ -94,8 +94,8 @@ export default function AuthView({ mode, onSubmit, error, onNavigate }) {
         <button className="btn btn-primary" type="submit">{copy.submit} <span>↗</span></button>
         <div className="form-note">
           {register
-            ? 'Demo environment. This creates a simulated account on the VELTRIX demo backend. No real funds, trading, or money movement are involved.'
-            : 'Demo environment. Sign in to the simulated VELTRIX demo backend. No real funds or live trading are involved.'}
+            ? 'Preview environment. This creates a simulated account on the backend. No real funds, trading, or money movement are involved.'
+            : 'Preview environment. Sign in to the simulated backend. No real funds or live trading are involved.'}
         </div>
         <div className="auth-switch">
           {copy.switchText}{' '}

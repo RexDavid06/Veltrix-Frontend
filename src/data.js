@@ -1,16 +1,11 @@
-export const DEFAULT_MARKET_ROWS = [
-  ['EUR/USD', 'Euro / US Dollar', '1.0842', '+0.18%', 'positive', '€'],
-  ['BTC/USD', 'Bitcoin / US Dollar', '$67,420', '+1.42%', 'positive', '₿'],
-  ['XAU/USD', 'Gold / US Dollar', '$2,356.80', '−0.24%', 'negative', 'Au'],
-  ['NAS100', 'Nasdaq 100', '18,214.6', '+0.62%', 'positive', '↗'],
   ['GBP/USD', 'British Pound / US Dollar', '1.2716', '+0.08%', 'positive', '£'],
 ]
 
 export const DEMO_TRANSACTIONS = [
-  ['Sample deposit', 'Demo account', '2026-10-07', '$1,000.00', 'pending'],
-  ['Demo purchase', 'BTC/USD', '2026-10-05', '$250.00', 'review'],
-  ['Sample withdrawal', 'Demo account', '2026-10-02', '$120.00', 'pending'],
-  ['Demo adjustment', 'Portfolio', '2026-09-29', '$75.00', 'review'],
+  ['Sample deposit', 'Sample account', '2026-10-07', '$1,000.00', 'pending'],
+  ['Sample purchase', 'BTC/USD', '2026-10-05', '$250.00', 'review'],
+  ['Sample withdrawal', 'Sample account', '2026-10-02', '$120.00', 'pending'],
+  ['Sample adjustment', 'Portfolio', '2026-09-29', '$75.00', 'review'],
 ]
 
 export const NAV_ITEMS = [
@@ -64,16 +59,12 @@ export function formatCurrency(value = 0) {
 // [symbol, name, price, change, tone, badge]
 export function marketRowsFromApi(quotes = []) {
   return quotes.map((quote) => {
-    const change = Number(quote.change_percent || 0)
-    const tone = change >= 0 ? 'positive' : 'negative'
-    const sign = change >= 0 ? '+' : '−'
-    return [
-      quote.symbol,
-      quote.name || quote.symbol,
-      formatPrice(quote.price),
-      `${sign}${Math.abs(change).toFixed(2)}%`,
-      tone,
-      badgeFor(quote.symbol, quote.name),
-    ]
+    const symbol = quote.symbol || quote.pair || quote.ticker || ''
+    const name = quote.name || quote.description || ''
+    const price = quote.price || quote.last || quote.current_price || 0
+    const change = quote.change_percent || quote.pct_change || quote.price_change_percentage_24h || 0
+    const tone = Number(change) >= 0 ? 'positive' : 'negative'
+    const changeText = (Number(change) >= 0 ? `+${Number(change).toFixed(2)}%` : `${Number(change).toFixed(2)}%`)
+    return [String(symbol).toUpperCase(), name, formatPrice(price), changeText, tone, badgeFor(symbol, name)]
   })
 }
