@@ -1,3 +1,26 @@
+import React from 'react'
+
+const CARDS = [
+  {
+    icon: '€',
+    iconClass: '',
+    asset: 'CURRENCIES',
+    title: 'EUR / USD',
+    tag: 'FOREX',
+    price: '1.0842',
+    change: '+0.18%',
+    tone: 'positive',
+    stroke: '#72d9a7',
+    spark: 'M0 24 L20 20 L37 28 L54 18 L72 22 L91 14 L108 19 L126 10 L144 14 L161 8 L180 12 L200 4',
+  },
+  {
+    icon: '₿',
+    iconClass: 'bitcoin',
+    asset: 'DIGITAL ASSETS',
+    title: 'Bitcoin / USD',
+    tag: 'CRYPTO',
+    price: '$67,420',
+    change: '+1.42%',
     tone: 'positive',
     stroke: '#72d9a7',
     spark: 'M0 34 L20 37 L37 22 L54 28 L72 15 L91 24 L108 7 L126 16 L144 5 L161 13 L180 4 L200 8',

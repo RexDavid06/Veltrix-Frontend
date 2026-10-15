@@ -8,9 +8,23 @@
 
 import axios from 'axios'
 
-const RAW_API = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'
+const RAW_API = import.meta.env.VITE_API_URL !== undefined
+  ? import.meta.env.VITE_API_URL
+  : ''
 let API_ROOT = RAW_API.replace(/\/$/, '')
-if (!API_ROOT.endsWith('/api')) API_ROOT = `${API_ROOT}/api`
+if (!API_ROOT.endsWith('/api')) API_ROOT = API_ROOT ? `${API_ROOT}/api` : '/api'
+
+export const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL || 'https://ais-dev-kpzdvdmrek7cuieuepr6ud-40509995081.europe-west3.run.app'
+
+export function getWsUrl(path = '') {
+  const cleanPath = path.startsWith('/') ? path : `/${path}`
+  if (import.meta.env.VITE_WS_URL) {
+    return `${import.meta.env.VITE_WS_URL.replace(/\/$/, '')}${cleanPath}`
+  }
+  const protocol = typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  const host = typeof window !== 'undefined' ? window.location.host : 'localhost:3000'
+  return `${protocol}//${host}${cleanPath}`
+}
 
 const api = axios.create()
 

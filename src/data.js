@@ -1,3 +1,8 @@
+export const DEFAULT_MARKET_ROWS = [
+  ['EUR/USD', 'Euro / US Dollar', '1.0842', '+0.18%', 'positive', '€'],
+  ['BTC/USD', 'Bitcoin / US Dollar', '$67,420', '+1.42%', 'positive', '₿'],
+  ['XAU/USD', 'Gold / US Dollar', '$2,356.80', '−0.24%', 'negative', 'Au'],
+  ['NAS100', 'Nasdaq 100', '18,214.6', '+0.62%', 'positive', '↗'],
   ['GBP/USD', 'British Pound / US Dollar', '1.2716', '+0.08%', 'positive', '£'],
 ]
 
