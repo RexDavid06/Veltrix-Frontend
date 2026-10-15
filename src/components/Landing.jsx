@@ -7,16 +7,16 @@ import AccountsSection from './AccountsSection'
 import EducationSection from './EducationSection'
 import SupportCTA from './SupportCTA'
 
-export default function Landing({ onNavigate }) {
+export default function Landing({ onNavigate, quotes = [], token }) {
   return (
     <>
       <Hero onNavigate={onNavigate} />
-      <TickerStrip />
-      <MarketsSection onNavigate={onNavigate} />
+      <TickerStrip quotes={quotes} />
+      <MarketsSection onNavigate={onNavigate} quotes={quotes} />
       <FeatureBand onNavigate={onNavigate} />
       <AccountsSection onNavigate={onNavigate} />
       <EducationSection />
-      <SupportCTA onNavigate={onNavigate} />
+      <SupportCTA onNavigate={onNavigate} token={token} />
     </>
   )
 }

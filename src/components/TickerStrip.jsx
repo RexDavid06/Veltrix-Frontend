@@ -1,17 +1,25 @@
 import React from 'react'
 
-const TICKERS = [
-  { label: 'EUR/USD', value: '1.0842', change: '+0.18%', tone: 'positive' },
-  { label: 'BTC/USD', value: '$67,420', change: '+1.42%', tone: 'positive' },
-  { label: 'GOLD', value: '$2,356.80', change: '−0.24%', tone: 'negative' },
-  { label: 'NASDAQ', value: '18,214.6', change: '+0.62%', tone: 'positive' },
-]
+export default function TickerStrip({ quotes = [] }) {
+  const displayItems = quotes.length > 0
+    ? quotes.slice(0, 6).map((q) => ({
+        label: q.symbol,
+        value: q.priceFormatted,
+        change: q.changeText,
+        tone: q.tone,
+      }))
+    : [
+        { label: 'EUR/USD', value: '1.1218', change: '+0.22%', tone: 'positive' },
+        { label: 'BTC/USD', value: '$81,259.58', change: '+1.45%', tone: 'positive' },
+        { label: 'GOLD', value: '$4,165.40', change: '−0.18%', tone: 'negative' },
+        { label: 'NASDAQ', value: '26,692.87', change: '+0.62%', tone: 'positive' },
+        { label: 'GBP/USD', value: '1.3225', change: '+0.12%', tone: 'positive' },
+      ]
 
-export default function TickerStrip() {
   return (
     <section className="ticker-strip">
-      <div className="ticker-intro">MARKET SNAPSHOT <span>DEMO</span></div>
-      {TICKERS.map((t) => (
+      <div className="ticker-intro">MARKET SNAPSHOT <span>LIVE</span></div>
+      {displayItems.map((t) => (
         <div className="ticker-item" key={t.label}>
           <span>{t.label}</span>
           <b>{t.value}</b>

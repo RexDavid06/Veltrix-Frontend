@@ -26,7 +26,7 @@ export default function TopUpModal({ isOpen, onClose, onTopUp, currentBalance = 
       const msg = err?.response?.data?.detail
         || err?.response?.data?.error
         || err?.message
-        || 'Failed to top up simulated funds.'
+        || 'Failed to process deposit transaction.'
       setError(msg)
     } finally {
       setLoading(false)
@@ -62,7 +62,7 @@ export default function TopUpModal({ isOpen, onClose, onTopUp, currentBalance = 
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <div className="eyebrow" style={{ margin: 0 }}>
-            <span className="eyebrow-line" /> DEMO FUNDS
+            <span className="eyebrow-line" /> ACCOUNT FUNDING
           </div>
           <button
             type="button"
@@ -80,7 +80,7 @@ export default function TopUpModal({ isOpen, onClose, onTopUp, currentBalance = 
           </button>
         </div>
 
-        <h2 style={{ fontSize: 24, margin: '0 0 6px' }}>Top Up Demo Balance</h2>
+        <h2 style={{ fontSize: 24, margin: '0 0 6px' }}>Deposit Trading Funds</h2>
         <p style={{ color: '#8ca094', fontSize: 11, margin: '0 0 16px' }}>
           Current balance: <strong style={{ color: 'var(--green)' }}>${Number(currentBalance || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} USD</strong>
         </p>
@@ -139,12 +139,12 @@ export default function TopUpModal({ isOpen, onClose, onTopUp, currentBalance = 
               style={{ flex: 2 }}
               disabled={loading}
             >
-              {loading ? 'Depositing…' : `Deposit $${amount || '0'} USD`} ↗
+              {loading ? 'Processing Deposit…' : `Deposit $${amount || '0'} USD`} ↗
             </button>
           </div>
 
           <div className="form-note" style={{ marginTop: 14 }}>
-            Credits simulated funds directly to your DRF demo account and records a deposit transaction on the ledger.
+            Credits funds directly to your verified brokerage account and records a completed deposit transaction on the ledger.
           </div>
         </form>
       </div>

@@ -33,9 +33,9 @@ export function renderMarketRows(rows, onToast, onTrade, onToggleWatchlist, watc
             <button
               className="btn btn-outline"
               style={{ padding: '6px 9px' }}
-              onClick={() => onToast('Market action preview only')}
+              onClick={() => onToast('Select Trade to execute market order')}
             >
-              View
+              Trade
             </button>
           )}
 
@@ -88,8 +88,8 @@ export function MarketTable({
     <div className="app-card">
       <div className="section-row" style={{ flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h3>Market Watch & Tradable Instruments</h3>
-          <div className="muted-copy">Live simulated quotes connected to backend API & Yahoo Finance.</div>
+          <h3>Global Markets & Tradable Instruments</h3>
+          <div className="muted-copy">Real-time institutional pricing and deep liquidity feeds.</div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <input

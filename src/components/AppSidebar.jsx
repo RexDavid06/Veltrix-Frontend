@@ -26,9 +26,9 @@ export default function AppSidebar({ active, admin = false, onNavigate }) {
           </React.Fragment>
         )
       })}
-      <div className="sidebar-title">DEMO ACCOUNT</div>
+      <div className="sidebar-title">CLIENT ACCOUNT</div>
       <button className="side-link" data-view="login" onClick={() => onNavigate('login')}>
-        <span className="nav-icon">↪</span>Sign out preview
+        <span className="nav-icon">↪</span>Sign out
       </button>
     </aside>
   )

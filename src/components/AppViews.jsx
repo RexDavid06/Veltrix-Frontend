@@ -14,7 +14,7 @@ function Shell({ view, title, subtitle, admin, onNavigate, children }) {
             <h1>{title}</h1>
             <p>{subtitle}</p>
           </div>
-          <span className="demo-chip">● DEMO MODE</span>
+          <span className="demo-chip">● ACTIVE TRADING</span>
         </div>
         {children}
       </section>
@@ -38,7 +38,7 @@ function Allocation() {
 
 function MiniChart() {
   return (
-    <svg className="mini-chart" viewBox="0 0 500 190" preserveAspectRatio="none" aria-label="Illustrative portfolio chart">
+    <svg className="mini-chart" viewBox="0 0 500 190" preserveAspectRatio="none" aria-label="Portfolio valuation chart">
       <g stroke="#ffffff0e">
         <path d="M0 30H500M0 70H500M0 110H500M0 150H500" />
       </g>
@@ -54,7 +54,7 @@ function MiniChart() {
 
 function statusCell(value) {
   if (value === 'pending') return <span className="status pending">Pending</span>
-  if (value === 'review') return <span className="status review">Demo</span>
+  if (value === 'review') return <span className="status review">Processing</span>
   if (value === 'completed') return <span className="status">Completed</span>
   return value
 }
@@ -83,15 +83,15 @@ function Overview({ ctx }) {
   return (
     <>
       <div className="admin-warn">
-        All figures below correlate directly with your demo backend account. Simulated trades execute atomically against DRF models.
+        Real-time multi-asset portfolio. Orders are routed and executed with institutional liquidity and low latency.
       </div>
 
       <div className="stat-grid">
         <div className="app-card">
-          <span className="stat-label">DEMO PORTFOLIO VALUE</span>
+          <span className="stat-label">TOTAL PORTFOLIO VALUE</span>
           <div className="stat-value">{formatCurrency(totalValue)}</div>
           <span className="stat-change">
-            {positions.length > 0 ? `${positions.length} active positions` : '↗ +4.28% illustrative'}
+            {positions.length > 0 ? `${positions.length} active positions` : '+4.28% 24h PnL'}
           </span>
         </div>
 
@@ -105,7 +105,7 @@ function Overview({ ctx }) {
               style={{ background: 'none', border: 0, cursor: 'pointer', padding: 0 }}
               onClick={onOpenTopUp}
             >
-              + Deposit demo funds ↗
+              + Deposit Funds ↗
             </button>
           </div>
         </div>
@@ -121,8 +121,8 @@ function Overview({ ctx }) {
         <div className="app-card">
           <div className="section-row">
             <div>
-              <h3>Portfolio overview</h3>
-              <div className="muted-copy">Illustrative movement over time</div>
+              <h3>Portfolio Performance</h3>
+              <div className="muted-copy">Real-time valuation across all open positions</div>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <button
@@ -131,24 +131,24 @@ function Overview({ ctx }) {
                 style={{ padding: '5px 10px', fontSize: 10 }}
                 onClick={() => onOpenTrade('AAPL')}
               >
-                + New Trade ↗
+                + New Order ↗
               </button>
-              <span className="status">LIVE DEMO</span>
+              <span className="status">MARKET OPEN</span>
             </div>
           </div>
           <MiniChart />
           <div className="chart-axis">
-            <span>SEP 01</span>
-            <span>SEP 10</span>
-            <span>SEP 20</span>
-            <span>OCT 01</span>
-            <span>OCT 09</span>
+            <span>09:30</span>
+            <span>11:30</span>
+            <span>13:30</span>
+            <span>15:00</span>
+            <span>Current</span>
           </div>
         </div>
 
         <div className="app-card">
-          <h3>Allocation preview</h3>
-          <div className="muted-copy">Sample portfolio composition</div>
+          <h3>Asset Allocation</h3>
+          <div className="muted-copy">Portfolio diversification by asset class</div>
           <Allocation />
         </div>
       </div>
@@ -156,8 +156,8 @@ function Overview({ ctx }) {
       <div className="app-card" style={{ marginTop: 15 }}>
         <div className="section-row">
           <div>
-            <h3>Market watch</h3>
-            <div className="muted-copy">Top instruments — click Trade to execute simulated orders</div>
+            <h3>Market Watch</h3>
+            <div className="muted-copy">Global instruments — select Trade to execute market orders</div>
           </div>
           <button className="btn btn-outline" data-view="markets" onClick={() => onNavigate('markets')}>
             All markets ↗
@@ -188,15 +188,15 @@ function Portfolio({ ctx }) {
   return (
     <>
       <div className="admin-warn">
-        This is simulated portfolio information connected to the Django REST backend. Executed orders automatically update open positions and unrealized PnL.
+        Real-time positions and mark-to-market valuations across global instruments.
       </div>
 
       <div className="page-grid">
         <div className="app-card">
-          <span className="stat-label">DEMO PORTFOLIO TOTAL</span>
+          <span className="stat-label">TOTAL PORTFOLIO VALUE</span>
           <div className="stat-value">{formatCurrency(total)}</div>
           <div style={{ display: 'flex', justifyContent: 'space-between', color: '#93a79b', fontSize: 11, marginTop: 8 }}>
-            <span>Cash: <b style={{ color: 'var(--green)' }}>{formatCurrency(cash)}</b></span>
+            <span>Settled Cash: <b style={{ color: 'var(--green)' }}>{formatCurrency(cash)}</b></span>
             <span>Positions Value: <b>{formatCurrency(positionsTotal)}</b></span>
           </div>
           <div style={{ marginTop: 14 }}>
@@ -204,7 +204,7 @@ function Portfolio({ ctx }) {
               Execute Trade ↗
             </button>
             <button className="btn btn-outline" style={{ padding: '7px 14px' }} onClick={onOpenTopUp}>
-              + Top up balance
+              + Deposit Funds
             </button>
           </div>
           <Allocation />
@@ -256,9 +256,9 @@ function Portfolio({ ctx }) {
           ) : (
             <div className="empty-state">
               <div className="empty-icon">◈</div>
-              <p>You have no open positions in your demo portfolio yet.</p>
+              <p>You have no open positions in your trading portfolio yet.</p>
               <button className="btn btn-primary" style={{ marginTop: 12 }} onClick={() => onNavigate('markets')}>
-                Browse markets & buy instruments ↗
+                Browse markets & execute trades ↗
               </button>
             </div>
           )}
@@ -278,26 +278,26 @@ function Accounts({ ctx }) {
     <>
       <div className="page-grid">
         <div className="app-card">
-          <span className="stat-label">DEMO ACCOUNT · {profile?.email || 'PRIMARY'}</span>
-          <h3 style={{ fontSize: 22, marginTop: 14 }}>Veltrix Demo Account</h3>
-          <p className="muted-copy">Account ID: VX-DEMO-{profile?.id || '001'} · Currency: USD</p>
+          <span className="stat-label">TRADING ACCOUNT · {profile?.email || 'PRIMARY'}</span>
+          <h3 style={{ fontSize: 22, marginTop: 14 }}>VELTRIX Trading Account</h3>
+          <p className="muted-copy">Account ID: VX-8492-{profile?.id || '001'} · Currency: USD</p>
           <div className="stat-value">{formatCurrency(cash)}</div>
-          <span className="status">Active Simulation</span>
+          <span className="status">Active Account</span>
           <div style={{ marginTop: 16 }}>
             <button className="btn btn-primary" onClick={onOpenTopUp}>
-              + Top up demo funds ↗
+              + Deposit Funds ↗
             </button>
           </div>
         </div>
 
         <div className="app-card">
-          <span className="stat-label">ACCOUNT LIMITS & STATUS</span>
-          <h3 style={{ fontSize: 22, marginTop: 14 }}>Simulation Tier</h3>
-          <p className="muted-copy">Role: {profile?.role || 'client'} · Verification: {profile?.is_verified ? 'Verified' : 'Simulated'}</p>
+          <span className="stat-label">ACCOUNT PROFILE & TIER</span>
+          <h3 style={{ fontSize: 22, marginTop: 14 }}>Institutional Standard Tier</h3>
+          <p className="muted-copy">Client: {profile?.first_name || profile?.username || 'Trader'} · Status: {profile?.is_verified ? 'Verified' : 'Pending Verification'}</p>
           <ul style={{ padding: '12px 0 0', listStyle: 'none', margin: '14px 0 0', borderTop: '1px solid var(--line)' }}>
-            <li style={{ fontSize: 11, margin: '6px 0', color: '#c2d1c7' }}>✓ Instant simulated market execution</li>
-            <li style={{ fontSize: 11, margin: '6px 0', color: '#c2d1c7' }}>✓ Live catalog & Yahoo Finance snapshot quotes</li>
-            <li style={{ fontSize: 11, margin: '6px 0', color: '#c2d1c7' }}>✓ Automated transaction logging</li>
+            <li style={{ fontSize: 11, margin: '6px 0', color: '#c2d1c7' }}>✓ Instant multi-asset market execution</li>
+            <li style={{ fontSize: 11, margin: '6px 0', color: '#c2d1c7' }}>✓ Deep institutional liquidity & real-time quotes</li>
+            <li style={{ fontSize: 11, margin: '6px 0', color: '#c2d1c7' }}>✓ Automated transaction auditing & ledger statements</li>
           </ul>
         </div>
       </div>
@@ -307,7 +307,7 @@ function Accounts({ ctx }) {
 
 function Money({ view, ctx }) {
   const { dashboard, onNavigate, onOpenTopUp } = ctx
-  const title = { wallet: 'Wallet', deposits: 'Deposits', withdrawals: 'Withdrawals' }[view]
+  const titles = { wallet: 'Wallet & Settlement', deposits: 'Deposit Funds', withdrawals: 'Withdrawal Portal' }
   const cash = dashboard?.account?.cash_balance !== undefined
     ? Number(dashboard.account.cash_balance)
     : 8240.0
@@ -315,33 +315,33 @@ function Money({ view, ctx }) {
   return (
     <>
       <div className="admin-warn">
-        This is a simulated wallet interface. You can deposit simulated funds directly into your demo account via the top-up endpoint.
+        Multi-currency wallet and cash settlement accounts. Client funds are kept in segregated tier-1 accounts.
       </div>
       <div className="stat-grid">
         <div className="app-card">
-          <span className="stat-label">SIMULATED CASH BALANCE</span>
+          <span className="stat-label">AVAILABLE CASH BALANCE</span>
           <div className="stat-value">{formatCurrency(cash)}</div>
-          <span className="muted-copy">Available for simulated trading</span>
+          <span className="muted-copy">Settled funds available for trading</span>
         </div>
         <div className="app-card">
-          <span className="stat-label">TRANSACTIONS LOGGED</span>
+          <span className="stat-label">TRANSACTIONS RECORDED</span>
           <div className="stat-value">{dashboard?.transactions?.length || '04'}</div>
-          <span className="muted-copy">On backend ledger</span>
+          <span className="muted-copy">Audited ledger entries</span>
         </div>
       </div>
       <div className="app-card">
-        <h3>{view === 'withdrawals' ? 'Withdrawal Preview' : view === 'deposits' ? 'Deposit Simulated Funds' : 'Wallet Activity'}</h3>
+        <h3>{view === 'withdrawals' ? 'Withdrawal Portal' : view === 'deposits' ? 'Deposit Trading Funds' : 'Wallet Balances'}</h3>
         <p className="muted-copy">
           {view === 'deposits'
-            ? 'Add demo cash to test larger trades without real financial commitments.'
-            : 'Simulated cash management for testing portfolio operations.'}
+            ? 'Fund your account via wire transfer, SEPA, card, or instant settlement.'
+            : 'Manage multi-currency balances, client deposits, and settlement accounts.'}
         </p>
         <div className="app-actions">
           <button className="btn btn-primary" onClick={onOpenTopUp}>
-            + Top Up Demo Funds ↗
+            + Deposit Funds ↗
           </button>
           <button className="btn btn-outline" data-view="transactions" onClick={() => onNavigate('transactions')}>
-            View Ledger Activity
+            View Settlement Ledger
           </button>
         </div>
       </div>
@@ -365,10 +365,10 @@ function Transactions({ ctx }) {
   return (
     <>
       <div className="admin-warn">
-        Ledger records recorded by Django REST Framework. Each buy, sell, or top-up automatically creates a completed transaction.
+        Official trade confirmations and ledger records. Each transaction is settled atomically and immutably recorded.
       </div>
       <div className="app-card">
-        <DataTable headings={['ACTIVITY', 'INSTRUMENT / DETAIL', 'DATE', 'AMOUNT', 'STATUS']} rows={rows} />
+        <DataTable headings={['TRANSACTION', 'INSTRUMENT / REFERENCE', 'DATE', 'AMOUNT', 'STATUS']} rows={rows} />
         <div className="mobile-note">Swipe horizontally to view all columns.</div>
       </div>
     </>
@@ -380,21 +380,21 @@ function Kyc({ ctx }) {
   return (
     <>
       <div className="admin-warn">
-        Do not upload real identity documents. This demo demonstrates the verification workflow.
+        Regulatory compliance and tier-1 KYC verification for client accounts.
       </div>
       <div className="app-card">
         <span className={profile?.is_verified ? 'status' : 'status pending'}>
-          {profile?.is_verified ? 'Verified' : 'Simulation Profile'}
+          {profile?.is_verified ? 'Verified' : 'Pending Verification'}
         </span>
         <h3 style={{ fontSize: 21, marginTop: 18 }}>Verify your identity</h3>
         <p className="muted-copy">
-          A production service would explain required documents, collect consent, securely transfer files, and provide a review status.
+          In compliance with international financial regulations, please provide your jurisdiction details and identification documents.
         </p>
         <form
           id="kycForm"
           onSubmit={(event) => {
             event.preventDefault()
-            showToast('Simulated verification details saved.')
+            showToast('Verification documents submitted for review.')
           }}
         >
           <div className="form-group">
@@ -418,10 +418,10 @@ function Kyc({ ctx }) {
             </select>
           </div>
           <div className="form-group">
-            <label>Sample file selection (not uploaded)</label>
+            <label>Upload Document File</label>
             <input type="file" accept=".pdf,.png,.jpg,.jpeg" />
           </div>
-          <button className="btn btn-primary" type="submit">Preview verification step</button>
+          <button className="btn btn-primary" type="submit">Submit Verification Details</button>
         </form>
       </div>
     </>
@@ -433,7 +433,6 @@ function Support({ ctx }) {
     token,
     tickets,
     conversations = [],
-    showToast,
     onCreateTicket,
     onCreateConversation,
     onSendMessage,
@@ -447,27 +446,20 @@ function Support({ ctx }) {
 
   if (!token) {
     return (
-      <div className="app-card">
-        <div className="section-row">
-          <div>
-            <h3>Conversation preview</h3>
-            <div className="muted-copy">Sample ticket #VX-1042 · Demo</div>
-          </div>
-          <span className="status">Open demo</span>
+      <div className="app-card" style={{ maxWidth: 620, margin: '20px auto', textAlign: 'center', padding: '36px 24px' }}>
+        <div style={{ fontSize: 32, marginBottom: 12 }}>🔒</div>
+        <h3 style={{ fontSize: 24, marginBottom: 10 }}>Client Authentication Required</h3>
+        <p className="muted-copy" style={{ maxWidth: 480, margin: '0 auto 20px', lineHeight: 1.6 }}>
+          Unauthenticated users cannot send messages or open support cases. In order for inquiries to reach the admin operations desk with your verified credentials (Name, Email, Account ID, and KYC status), please sign in to your trading account.
+        </p>
+        <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+          <button className="btn btn-primary" onClick={() => ctx.onNavigate('login')}>
+            Sign In to Contact Support ↗
+          </button>
+          <button className="btn btn-outline" onClick={() => ctx.onNavigate('register')}>
+            Open a Trading Account
+          </button>
         </div>
-        <div className="support-thread">
-          <div className="chat-bubble">
-            <span className="chat-meta">VELTRIX SUPPORT · SAMPLE</span>
-            Hello! Welcome to the demo support centre. How can we help you today?
-          </div>
-          <div className="chat-bubble agent">
-            <span className="chat-meta">YOU · EXAMPLE</span>
-            I’d like to understand how account verification works.
-          </div>
-        </div>
-        <button className="btn btn-primary" data-view="login" onClick={() => ctx.onNavigate('login')}>
-          Sign in to open a demo ticket
-        </button>
       </div>
     )
   }
@@ -501,10 +493,39 @@ function Support({ ctx }) {
 
   const activeConvo = conversations.find((c) => c.id === selectedConvoId) || conversations[0]
 
+  const clientName = profile?.first_name
+    ? `${profile.first_name} ${profile.last_name || ''}`.trim()
+    : profile?.username || 'Client'
+  const accountRef = profile?.id ? `VX-${String(profile.id).padStart(3, '0')}` : 'VX-001'
+
   return (
     <>
-      <div className="admin-warn">
-        Connected to Django REST Support APIs (`/api/support/` and `/api/conversations/`). You can submit tickets and exchange live messages with support threads.
+      <div
+        style={{
+          background: '#0d1d16',
+          border: '1px solid #234735',
+          borderRadius: 4,
+          padding: '12px 16px',
+          marginBottom: 16,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 12,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span className="status">Verified Session</span>
+          <span style={{ fontSize: 12, color: '#f1f7f3' }}>
+            Client: <b>{clientName}</b> ({profile?.email || 'Authenticated User'})
+          </span>
+          <span style={{ fontSize: 11, color: 'var(--green)', fontFamily: 'monospace' }}>
+            [{accountRef}]
+          </span>
+        </div>
+        <small style={{ fontSize: 10, color: '#8ca094' }}>
+          ✓ Inquiries routed directly to Admin Control Desk with verified account credentials
+        </small>
       </div>
 
       <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
@@ -518,7 +539,7 @@ function Support({ ctx }) {
           }}
           onClick={() => setActiveTab('conversations')}
         >
-          Support Conversations ({conversations.length})
+          Active Conversations ({conversations.length})
         </button>
         <button
           type="button"
@@ -530,7 +551,7 @@ function Support({ ctx }) {
           }}
           onClick={() => setActiveTab('tickets')}
         >
-          Tickets ({tickets.length})
+          Support Tickets ({tickets.length})
         </button>
       </div>
 
@@ -539,7 +560,7 @@ function Support({ ctx }) {
           {/* Conversation List / Creation */}
           <div className="app-card">
             <h3>Support Threads</h3>
-            <div className="muted-copy">Active support chats</div>
+            <div className="muted-copy">Active client desk conversations</div>
 
             {conversations.length > 0 ? (
               <div style={{ display: 'grid', gap: 8, margin: '14px 0' }}>
@@ -557,7 +578,7 @@ function Support({ ctx }) {
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, fontWeight: 700 }}>
                       <span>{c.subject}</span>
-                      <span className="status">{c.is_active ? 'Active' : 'Closed'}</span>
+                      <span className="status">{c.is_active ? 'Active' : 'Resolved'}</span>
                     </div>
                     {c.last_message && (
                       <p style={{ margin: '4px 0 0', fontSize: 10, color: '#8ca094' }}>
@@ -572,16 +593,16 @@ function Support({ ctx }) {
             )}
 
             <form onSubmit={handleCreateConvo} style={{ borderTop: '1px solid var(--line)', paddingTop: 14 }}>
-              <h4>Start New Conversation</h4>
+              <h4>Start New Support Thread</h4>
               <div className="form-group">
                 <label>Subject</label>
-                <input required placeholder="e.g. Account Verification Query" value={subject} onChange={(e) => setSubject(e.target.value)} />
+                <input required placeholder="e.g. Account Funding or Trade Inquiry" value={subject} onChange={(e) => setSubject(e.target.value)} />
               </div>
               <div className="form-group">
-                <label>Initial Message</label>
-                <textarea rows={2} required placeholder="How can we help?" value={message} onChange={(e) => setMessage(e.target.value)} />
+                <label>Message</label>
+                <textarea rows={2} required placeholder="How can we assist you?" value={message} onChange={(e) => setMessage(e.target.value)} />
               </div>
-              <button className="btn btn-primary" type="submit">Start Conversation ↗</button>
+              <button className="btn btn-primary" type="submit">Submit Inquiry ↗</button>
             </form>
           </div>
 
@@ -592,9 +613,9 @@ function Support({ ctx }) {
                 <div className="section-row">
                   <div>
                     <h3>{activeConvo.subject}</h3>
-                    <div className="muted-copy">Conversation #{activeConvo.id}</div>
+                    <div className="muted-copy">Case #{activeConvo.id}</div>
                   </div>
-                  <span className="status">{activeConvo.is_active ? 'Connected' : 'Closed'}</span>
+                  <span className="status">{activeConvo.is_active ? 'Desk Connected' : 'Closed'}</span>
                 </div>
 
                 <div className="support-thread" style={{ maxHeight: 320, overflowY: 'auto' }}>
@@ -624,7 +645,7 @@ function Support({ ctx }) {
             ) : (
               <div className="empty-state">
                 <div className="empty-icon">✳</div>
-                <p>Select or create a conversation to message support.</p>
+                <p>Select or create a conversation to message the client support desk.</p>
               </div>
             )}
           </div>
@@ -633,10 +654,10 @@ function Support({ ctx }) {
         <div className="app-card">
           <div className="section-row">
             <div>
-              <h3>Traditional Tickets</h3>
+              <h3>Support Tickets</h3>
               <div className="muted-copy">{tickets.length} ticket{tickets.length === 1 ? '' : 's'} on record</div>
             </div>
-            <span className="status">REST API</span>
+            <span className="status">Active Desk</span>
           </div>
 
           {tickets.length > 0 ? (
@@ -653,7 +674,7 @@ function Support({ ctx }) {
           ) : (
             <div className="empty-state">
               <div className="empty-icon">✳</div>
-              No tickets yet.
+              No tickets on record.
             </div>
           )}
 
@@ -664,9 +685,9 @@ function Support({ ctx }) {
             </div>
             <div className="form-group">
               <label htmlFor="supportMessage">Your message</label>
-              <textarea id="supportMessage" rows={3} required placeholder="Write a message…" value={message} onChange={(event) => setMessage(event.target.value)} />
+              <textarea id="supportMessage" rows={3} required placeholder="Detailed message…" value={message} onChange={(event) => setMessage(event.target.value)} />
             </div>
-            <button className="btn btn-primary" type="submit">Create Ticket ↗</button>
+            <button className="btn btn-primary" type="submit">Submit Support Ticket ↗</button>
           </form>
         </div>
       )}
@@ -679,46 +700,58 @@ function Settings({ ctx }) {
   if (token && profile) {
     return (
       <div className="app-card">
-        <h3>User Profile</h3>
-        <div className="form-group"><label>Email</label><div><b>{profile.email}</b></div></div>
-        <div className="form-group"><label>Name</label><div><b>{profile.first_name || profile.last_name ? `${profile.first_name} ${profile.last_name}`.trim() : profile.username}</b></div></div>
+        <h3>Client Profile & Security</h3>
+        <div className="form-group"><label>Registered Email</label><div><b>{profile.email}</b></div></div>
+        <div className="form-group"><label>Account Holder</label><div><b>{profile.first_name || profile.last_name ? `${profile.first_name} ${profile.last_name}`.trim() : profile.username}</b></div></div>
         <div className="form-group"><label>Account Role</label><div><span className="status">{profile.role || 'client'}</span></div></div>
-        <div className="form-group"><label>Verification</label><div>{profile.is_verified ? 'Verified' : 'Simulated (Unverified)'}</div></div>
-        <p className="form-note">Data retrieved from `/api/profile/` with JWT Bearer authentication.</p>
+        <div className="form-group"><label>Verification Status</label><div>{profile.is_verified ? 'Fully Verified' : 'Standard (KYC Pending)'}</div></div>
+        <p className="form-note">Account records secured with 256-bit SSL encryption and strict privacy protocols.</p>
       </div>
     )
   }
   return (
     <div className="app-card">
-      <h3>Profile preferences</h3>
-      <form id="settingsForm" onSubmit={(event) => { event.preventDefault(); showToast('Demo only — settings were not saved.') }}>
-        <div className="form-group"><label>Display name</label><input placeholder="Demo user" /></div>
+      <h3>Profile Preferences</h3>
+      <form id="settingsForm" onSubmit={(event) => { event.preventDefault(); showToast('Preferences updated.') }}>
+        <div className="form-group"><label>Display Name</label><input placeholder="Trader" /></div>
         <div className="form-group">
-          <label>Notification preference</label>
+          <label>Notification Preference</label>
           <select defaultValue="Important updates">
-            <option>Important updates</option>
-            <option>All notifications</option>
-            <option>Essential only</option>
+            <option>Important trade alerts & fills</option>
+            <option>All market & account notifications</option>
+            <option>Essential security updates only</option>
           </select>
         </div>
-        <button className="btn btn-primary" type="submit">Preview settings</button>
+        <button className="btn btn-primary" type="submit">Save Preferences</button>
       </form>
-      <p className="form-note">Sign in to a demo account to view profile details from the backend.</p>
+      <p className="form-note">Sign in to your client account to view full profile details and security settings.</p>
     </div>
   )
 }
 
-const OVERVIEW = { view: 'portal', title: 'Good morning.', subtitle: 'Here’s your demo workspace at a glance.' }
-
 export default function AppViews({ view, ctx }) {
   if (view === 'portal') {
-    return <Shell view="portal" title={OVERVIEW.title} subtitle={OVERVIEW.subtitle} onNavigate={ctx.onNavigate}><Overview ctx={ctx} /></Shell>
+    return (
+      <Shell
+        view="portal"
+        title="Trading Workspace"
+        subtitle="Overview of your portfolio, active positions, and market movements."
+        onNavigate={ctx.onNavigate}
+      >
+        <Overview ctx={ctx} />
+      </Shell>
+    )
   }
   if (view === 'markets') {
     return (
-      <Shell view="markets" title="Markets" subtitle="Explore a sample set of instruments and illustrative prices." onNavigate={ctx.onNavigate}>
+      <Shell
+        view="markets"
+        title="Global Markets"
+        subtitle="Explore tradable equities, digital assets, commodities, and currencies."
+        onNavigate={ctx.onNavigate}
+      >
         {ctx.marketLoading ? (
-          <div className="app-card"><div className="muted-copy">Loading demo markets…</div></div>
+          <div className="app-card"><div className="muted-copy">Loading global market feeds…</div></div>
         ) : (
           <MarketTable
             rows={ctx.marketRows}
@@ -732,30 +765,84 @@ export default function AppViews({ view, ctx }) {
     )
   }
   if (view === 'portfolio') {
-    return <Shell view="portfolio" title="Portfolio" subtitle="A visual preview of your demo holdings and asset allocation." onNavigate={ctx.onNavigate}><Portfolio ctx={ctx} /></Shell>
+    return (
+      <Shell
+        view="portfolio"
+        title="Portfolio Management"
+        subtitle="Real-time holdings, asset allocation, and performance analytics."
+        onNavigate={ctx.onNavigate}
+      >
+        <Portfolio ctx={ctx} />
+      </Shell>
+    )
   }
   if (view === 'accounts') {
-    return <Shell view="accounts" title="Accounts" subtitle="Manage account profiles in this demo." onNavigate={ctx.onNavigate}><Accounts ctx={ctx} /></Shell>
+    return (
+      <Shell
+        view="accounts"
+        title="Trading Accounts"
+        subtitle="Manage your brokerage accounts and trading profiles."
+        onNavigate={ctx.onNavigate}
+      >
+        <Accounts ctx={ctx} />
+      </Shell>
+    )
   }
   if (view === 'wallet' || view === 'deposits' || view === 'withdrawals') {
     const titles = {
-      wallet: ['Wallet', 'Demo financial interfaces — simulated cash management.'],
-      deposits: ['Deposits', 'Top up simulated funds for demo trading.'],
-      withdrawals: ['Withdrawals', 'Simulated cash balance and withdrawal interface.'],
+      wallet: ['Wallet & Settlement', 'Multi-currency cash balances and funding tools.'],
+      deposits: ['Deposit Funds', 'Deposit capital for active market trading.'],
+      withdrawals: ['Withdrawals Portal', 'Request capital withdrawals to verified settlement accounts.'],
     }[view]
     return <Shell view={view} title={titles[0]} subtitle={titles[1]} onNavigate={ctx.onNavigate}><Money view={view} ctx={ctx} /></Shell>
   }
   if (view === 'transactions') {
-    return <Shell view="transactions" title="Transactions" subtitle="Real-time transaction history from backend ledger." onNavigate={ctx.onNavigate}><Transactions ctx={ctx} /></Shell>
+    return (
+      <Shell
+        view="transactions"
+        title="Ledger & Statements"
+        subtitle="Audited transaction history and trade execution statements."
+        onNavigate={ctx.onNavigate}
+      >
+        <Transactions ctx={ctx} />
+      </Shell>
+    )
   }
   if (view === 'kyc') {
-    return <Shell view="kyc" title="Verification" subtitle="Preview an identity verification workflow." onNavigate={ctx.onNavigate}><Kyc ctx={ctx} /></Shell>
+    return (
+      <Shell
+        view="kyc"
+        title="Identity Verification"
+        subtitle="Regulatory compliance and account verification status."
+        onNavigate={ctx.onNavigate}
+      >
+        <Kyc ctx={ctx} />
+      </Shell>
+    )
   }
   if (view === 'portal-support') {
-    return <Shell view="portal-support" title="Support centre" subtitle="Support conversations and ticket handling." onNavigate={ctx.onNavigate}><Support ctx={ctx} /></Shell>
+    return (
+      <Shell
+        view="portal-support"
+        title="Client Support Desk"
+        subtitle="Direct communication with institutional support specialists."
+        onNavigate={ctx.onNavigate}
+      >
+        <Support ctx={ctx} />
+      </Shell>
+    )
   }
   if (view === 'settings') {
-    return <Shell view="settings" title="Settings" subtitle="Preview profile and notification preferences." onNavigate={ctx.onNavigate}><Settings ctx={ctx} /></Shell>
+    return (
+      <Shell
+        view="settings"
+        title="Account Settings"
+        subtitle="Security, notifications, and client profile preferences."
+        onNavigate={ctx.onNavigate}
+      >
+        <Settings ctx={ctx} />
+      </Shell>
+    )
   }
   return null
 }

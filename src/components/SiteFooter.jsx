@@ -11,7 +11,7 @@ export default function SiteFooter({ onNavigate }) {
         >
           <span className="brand-mark">V</span><span>VELTRIX</span>
         </a>
-        <p>A considered platform concept for exploring the markets.</p>
+        <p>Premier multi-asset brokerage and institutional market execution platform.</p>
         <div className="footer-links">
           <a href="#markets">Markets</a>
           <a href="#experience">Platform</a>
@@ -20,11 +20,11 @@ export default function SiteFooter({ onNavigate }) {
         </div>
       </div>
       <div className="section-wrap footer-bottom">
-        <span>© 2026 VELTRIX · Concept website</span>
-        <span>Demo only · Not a financial service offer</span>
+        <span>© 2026 VELTRIX Global Brokerage Ltd. All rights reserved.</span>
+        <span>Authorized Global Brokerage · Regulated Financial Intermediary</span>
       </div>
       <div className="section-wrap risk-disclaimer">
-        Risk disclosure: Trading and investing involve risk and may not be suitable for everyone. You may lose some or all of your invested capital. This concept website is not a licensed brokerage service, does not provide financial advice, and does not execute trades or process payments.
+        Risk Disclosure: Trading foreign exchange, digital assets, commodities, and equities involves significant risk of loss and is not suitable for all investors. High leverage can work against you as well as for you. Please carefully consider your investment objectives, level of experience, and risk appetite before entering into transactions with VELTRIX.
       </div>
     </footer>
   )

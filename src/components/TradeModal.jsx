@@ -72,7 +72,7 @@ export default function TradeModal({ isOpen, onClose, initialSymbol = 'AAPL', on
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <div className="eyebrow" style={{ margin: 0 }}>
-            <span className="eyebrow-line" /> SIMULATED TRADE
+            <span className="eyebrow-line" /> MARKET EXECUTION
           </div>
           <button
             type="button"
@@ -90,7 +90,7 @@ export default function TradeModal({ isOpen, onClose, initialSymbol = 'AAPL', on
           </button>
         </div>
 
-        <h2 style={{ fontSize: 24, margin: '0 0 6px' }}>Execute Demo Order</h2>
+        <h2 style={{ fontSize: 24, margin: '0 0 6px' }}>Place Market Order</h2>
         <p style={{ color: '#8ca094', fontSize: 11, margin: '0 0 16px' }}>
           Available Balance: <strong style={{ color: 'var(--green)' }}>${Number(cashBalance || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} USD</strong>
         </p>
@@ -190,12 +190,12 @@ export default function TradeModal({ isOpen, onClose, initialSymbol = 'AAPL', on
               style={{ flex: 2 }}
               disabled={loading}
             >
-              {loading ? 'Executing…' : `${side.toUpperCase()} ${quantity || '0'} ${symbol || ''}`} ↗
+              {loading ? 'Routing Order…' : `${side.toUpperCase()} ${quantity || '0'} ${symbol || ''}`} ↗
             </button>
           </div>
 
           <div className="form-note" style={{ marginTop: 14 }}>
-            Executed atomically against the Django REST backend. Simulated market price is pulled from Yahoo Finance or static catalog snapshot.
+            Direct STP order routing executed with institutional liquidity and instantaneous ledger settlement.
           </div>
         </form>
       </div>

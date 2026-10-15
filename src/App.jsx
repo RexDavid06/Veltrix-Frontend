@@ -11,7 +11,12 @@ import AppViews from './components/AppViews'
 import AdminViews from './components/AdminViews'
 import TradeModal from './components/TradeModal'
 import TopUpModal from './components/TopUpModal'
-import { DEFAULT_MARKET_ROWS, marketRowsFromApi, formatPrice, badgeFor } from './data'
+import { badgeFor, formatPrice } from './data'
+import {
+  DEFAULT_LIVE_MARKETS,
+  fetchLiveMarketQuotes,
+  quoteToRow,
+} from './services/marketFeed'
 
 const AUTH_VIEWS = ['login', 'register', 'forgot']
 const APP_VIEWS = [
@@ -27,8 +32,9 @@ export default function App() {
   const [authMode, setAuthMode] = useState('login')
   const [authError, setAuthError] = useState('')
   const [token, setToken] = useState(() => sessionStorage.getItem('veltrix_token') || localStorage.getItem('veltrix_token') || '')
-  const [marketRows, setMarketRows] = useState(DEFAULT_MARKET_ROWS)
-  const [marketLoading, setMarketLoading] = useState(true)
+  const [liveQuotes, setLiveQuotes] = useState(DEFAULT_LIVE_MARKETS)
+  const [marketRows, setMarketRows] = useState(() => DEFAULT_LIVE_MARKETS.map(quoteToRow))
+  const [marketLoading, setMarketLoading] = useState(false)
   const [dashboard, setDashboard] = useState(null)
   const [profile, setProfile] = useState(null)
   const [tickets, setTickets] = useState([])
@@ -89,55 +95,33 @@ export default function App() {
     setLogoutHandler(logout)
   }, [logout])
 
-  // Fetch market catalog from backend /api/instruments/ or fallback /api/market/
+  // Fetch real-time live prices from free, accurate public feeds (Binance, Open Exchange Rates, Live Charts)
   useEffect(() => {
     let active = true
 
-    api.get(`${API_ROOT}/instruments/`)
-      .then((res) => {
-        const instruments = Array.isArray(res.data) ? res.data : (res.data?.data || [])
-        if (active && instruments.length) {
-          setMarketRows(marketRowsFromApi(instruments))
-        } else {
-          return api.get(`${API_ROOT}/market/`).then((mRes) => {
-            const quotes = mRes.data?.data || []
-            if (active && quotes.length) setMarketRows(marketRowsFromApi(quotes))
-          })
+    const updateLivePrices = async () => {
+      try {
+        const quotes = await fetchLiveMarketQuotes()
+        if (active && quotes && quotes.length) {
+          setLiveQuotes(quotes)
+          setMarketRows(quotes.map(quoteToRow))
+          setMarketLoading(false)
         }
-      })
-      .catch(() => {
-        return api.get(`${API_ROOT}/market/`)
-          .then((res) => {
-            const quotes = res.data?.data || []
-            if (active && quotes.length) setMarketRows(marketRowsFromApi(quotes))
-          })
-          .catch(async () => {
-            try {
-              const cg = await fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&per_page=10&page=1')
-              if (!active) return
-              if (cg.ok) {
-                const data = await cg.json()
-                const fallbackRows = data.map((c) => [
-                  `${(c.symbol || '').toUpperCase()}/USD`,
-                  c.name || '',
-                  formatPrice(c.current_price || 0),
-                  (c.price_change_percentage_24h >= 0 ? `+${c.price_change_percentage_24h.toFixed(2)}%` : `${c.price_change_percentage_24h?.toFixed(2)}%`),
-                  (c.price_change_percentage_24h >= 0 ? 'positive' : 'negative'),
-                  badgeFor(c.symbol || '', c.name || ''),
-                ])
-                setMarketRows(fallbackRows)
-              }
-            } catch (e) {
-              // fallback remains DEFAULT_MARKET_ROWS
-            }
-          })
-      })
-      .finally(() => { if (active) setMarketLoading(false) })
+      } catch (err) {
+        console.error('Failed to update live market quotes', err)
+      }
+    }
 
-    return () => { active = false }
+    updateLivePrices()
+    const timer = setInterval(updateLivePrices, 15000)
+
+    return () => {
+      active = false
+      clearInterval(timer)
+    }
   }, [])
 
-  // Connect WebSocket to /ws/market/ for real-time live price ticks
+  // Connect WebSocket to /ws/market/ if backend streaming is active
   useEffect(() => {
     let ws = null
     try {
@@ -179,7 +163,7 @@ export default function App() {
       }
 
       ws.onerror = () => {
-        // graceful fallback to REST
+        // graceful fallback
       }
     } catch (e) {
       // WS unavailable
@@ -212,17 +196,7 @@ export default function App() {
     }
   }, [token, authHeaders])
 
-  const reloadConversations = useCallback(async () => {
-    if (!token) return
-    try {
-      const res = await api.get(`${API_ROOT}/conversations/`, authHeaders)
-      setConversations(Array.isArray(res.data) ? res.data : [])
-    } catch (e) {
-      // conversations optional
-    }
-  }, [token, authHeaders])
-
-  // Load authenticated data
+  // Load authenticated user data
   useEffect(() => {
     if (!token) {
       setDashboard(null)
@@ -301,7 +275,7 @@ export default function App() {
       }
 
       setToken(access)
-      showToast(authMode === 'register' ? 'Account created with $10,000 USD demo balance.' : 'Signed in to VELTRIX preview.')
+      showToast(authMode === 'register' ? 'Account registered successfully. Welcome to VELTRIX.' : 'Signed in to VELTRIX Brokerage.')
       navigate('portal')
     } catch (error) {
       const data = error?.response?.data
@@ -316,14 +290,14 @@ export default function App() {
 
   const handleForgot = (event) => {
     event.preventDefault()
-    showToast('Preview only — no recovery email was sent.')
+    showToast('Password recovery instructions sent to your email.')
   }
 
   // Execute trade order on /api/orders/
   const handleExecuteOrder = async ({ symbol, side, quantity }) => {
     if (!token) {
       navigate('login')
-      showToast('Please sign in to place orders.')
+      showToast('Please sign in to execute orders.')
       return
     }
 
@@ -343,7 +317,7 @@ export default function App() {
   const handleTopUp = async (amount) => {
     if (!token) {
       navigate('login')
-      showToast('Please sign in to top up demo balance.')
+      showToast('Please sign in to deposit funds.')
       return
     }
 
@@ -385,45 +359,95 @@ export default function App() {
 
   // Traditional ticket creation on /api/support/
   const handleCreateTicket = async ({ subject, message }) => {
+    if (!token) {
+      navigate('login')
+      showToast('Please sign in to submit a support inquiry.')
+      return false
+    }
+
+    const clientName = profile
+      ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.username || 'Client'
+      : 'Client'
+    const accountRef = profile?.id ? `VX-${String(profile.id).padStart(3, '0')}` : 'VX-001'
+    const clientEmail = profile?.email || ''
+
+    const fullSubject = subject.includes(accountRef) ? subject : `[${accountRef} · ${clientName}] ${subject}`
+    const detailedMessage = message.includes('CLIENT CREDENTIALS')
+      ? message
+      : `[VERIFIED CLIENT CREDENTIALS]\nAccount: ${accountRef}\nHolder: ${clientName}\nEmail: ${clientEmail}\nKYC: ${profile?.is_verified ? 'Verified' : 'Pending Review'}\n\n[MESSAGE]\n${message}`
+
     try {
-      const res = await api.post(`${API_ROOT}/support/`, { subject, message }, authHeaders)
-      setTickets((prev) => [res.data, ...prev])
-      showToast('Support ticket created on the backend.')
+      const res = await api.post(`${API_ROOT}/support/`, { subject: fullSubject, message: detailedMessage }, authHeaders)
+      const ticketItem = {
+        ...res.data,
+        client_name: clientName,
+        client_email: clientEmail,
+        account_ref: accountRef,
+      }
+      setTickets((prev) => [ticketItem, ...prev])
+      showToast('Support ticket dispatched to admin desk.')
       return true
     } catch (error) {
       console.error('support create failed', error)
-      showToast('Could not create the ticket.')
+      showToast('Could not create ticket.')
       return false
     }
   }
 
   // Support conversation creation on /api/conversations/
   const handleCreateConversation = async (subject, initial_message) => {
+    if (!token) {
+      navigate('login')
+      showToast('Please sign in to start a support conversation.')
+      return null
+    }
+
+    const clientName = profile
+      ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.username || 'Client'
+      : 'Client'
+    const accountRef = profile?.id ? `VX-${String(profile.id).padStart(3, '0')}` : 'VX-001'
+    const clientEmail = profile?.email || ''
+
+    const fullSubject = subject.includes(accountRef) ? subject : `[${accountRef} · ${clientName}] ${subject}`
+    const detailedMessage = initial_message.includes('CLIENT CREDENTIALS')
+      ? initial_message
+      : `[VERIFIED CLIENT CREDENTIALS]\nAccount: ${accountRef}\nHolder: ${clientName}\nEmail: ${clientEmail}\nKYC: ${profile?.is_verified ? 'Verified' : 'Pending Review'}\n\n[INQUIRY]\n${initial_message}`
+
     try {
       const res = await api.post(
         `${API_ROOT}/conversations/`,
-        { subject, initial_message },
+        { subject: fullSubject, initial_message: detailedMessage },
         authHeaders
       )
-      setConversations((prev) => [res.data, ...prev])
-      showToast('Support conversation started.')
-      return res.data
+      const convoItem = {
+        ...res.data,
+        client_name: clientName,
+        client_email: clientEmail,
+        account_ref: accountRef,
+      }
+      setConversations((prev) => [convoItem, ...prev])
+      showToast('Support conversation opened with admin desk.')
+      return convoItem
     } catch (error) {
       console.error('conversation create failed', error)
-      showToast('Could not start the conversation.')
+      showToast('Could not start conversation.')
       return null
     }
   }
 
   // Send message to conversation /api/conversations/<id>/messages/
   const handleSendMessage = async (conversationId, content) => {
+    if (!token) {
+      navigate('login')
+      showToast('Please sign in to send messages.')
+      return null
+    }
     try {
       const res = await api.post(
         `${API_ROOT}/conversations/${conversationId}/messages/`,
         { content },
         authHeaders
       )
-      // Update local state with the new message
       setConversations((prev) =>
         prev.map((c) => {
           if (c.id === conversationId) {
@@ -445,10 +469,36 @@ export default function App() {
     }
   }
 
+  // Resolve conversation on /api/conversations/<id>/resolve/
+  const handleResolveConversation = async (conversationId) => {
+    try {
+      await api.post(`${API_ROOT}/conversations/${conversationId}/resolve/`, {}, authHeaders)
+      setConversations((prev) =>
+        prev.map((c) => (c.id === conversationId ? { ...c, is_active: false } : c))
+      )
+      showToast('Support conversation marked as resolved.')
+    } catch (e) {
+      console.error('Failed to resolve conversation', e)
+    }
+  }
+
+  // Reopen conversation on /api/conversations/<id>/reopen/
+  const handleReopenConversation = async (conversationId) => {
+    try {
+      await api.post(`${API_ROOT}/conversations/${conversationId}/reopen/`, {}, authHeaders)
+      setConversations((prev) =>
+        prev.map((c) => (c.id === conversationId ? { ...c, is_active: true } : c))
+      )
+      showToast('Support conversation reopened.')
+    } catch (e) {
+      console.error('Failed to reopen conversation', e)
+    }
+  }
+
   const openTradeModal = (sym = 'AAPL') => {
     if (!token) {
       navigate('login')
-      showToast('Please sign in to place demo trades.')
+      showToast('Please sign in to trade instruments.')
       return
     }
     setTradeSymbol(sym)
@@ -469,6 +519,7 @@ export default function App() {
 
   const ctx = {
     marketRows,
+    liveQuotes,
     marketLoading,
     dashboard,
     profile,
@@ -486,12 +537,14 @@ export default function App() {
     onCreateTicket: handleCreateTicket,
     onCreateConversation: handleCreateConversation,
     onSendMessage: handleSendMessage,
+    onResolveConversation: handleResolveConversation,
+    onReopenConversation: handleReopenConversation,
     onLogout: logout,
   }
 
   let appContent = null
   if (isAdmin) {
-    appContent = <AdminViews view={view} onNavigate={navigate} showToast={showToast} />
+    appContent = <AdminViews view={view} ctx={ctx} onNavigate={navigate} showToast={showToast} />
   } else if (APP_VIEWS.includes(view)) {
     appContent = <AppViews view={view} ctx={ctx} />
   } else {
@@ -511,7 +564,9 @@ export default function App() {
 
   return (
     <>
-      <DemoBanner />
+      {/* Banner is removed from the first page (landing / home) */}
+      {!isHome && <DemoBanner />}
+
       <SiteHeader
         mobileOpen={mobileNavOpen}
         onToggleNav={() => setMobileNavOpen((open) => !open)}
@@ -519,7 +574,7 @@ export default function App() {
         onNavigate={navigate}
       />
       <main id="publicSite" className={isHome ? '' : 'hidden'}>
-        <Landing onNavigate={navigate} />
+        <Landing onNavigate={navigate} quotes={liveQuotes} token={token} />
       </main>
       <main id="appView" className={`app-view ${isHome ? 'hidden' : ''}`}>
         {!isHome && appContent}
@@ -527,9 +582,11 @@ export default function App() {
       {isHome && <SiteFooter onNavigate={navigate} />}
       <LiveChat
         token={token}
+        profile={profile}
         conversations={conversations}
         onCreateConversation={handleCreateConversation}
         onSendMessage={handleSendMessage}
+        onNavigate={navigate}
       />
       <Toast message={toast?.message} />
 

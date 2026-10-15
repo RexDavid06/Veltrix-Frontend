@@ -7,10 +7,10 @@ export const DEFAULT_MARKET_ROWS = [
 ]
 
 export const DEMO_TRANSACTIONS = [
-  ['Sample deposit', 'Sample account', '2026-10-07', '$1,000.00', 'pending'],
-  ['Sample purchase', 'BTC/USD', '2026-10-05', '$250.00', 'review'],
-  ['Sample withdrawal', 'Sample account', '2026-10-02', '$120.00', 'pending'],
-  ['Sample adjustment', 'Portfolio', '2026-09-29', '$75.00', 'review'],
+  ['Deposit settled', 'Wire Transfer #8492', '2026-10-07', '$10,000.00', 'completed'],
+  ['Market Buy', 'BTC-USD', '2026-10-05', '$2,500.00', 'completed'],
+  ['Market Buy', 'AAPL', '2026-10-02', '$1,120.00', 'completed'],
+  ['Position Settlement', 'Portfolio PnL', '2026-09-29', '$375.00', 'completed'],
 ]
 
 export const NAV_ITEMS = [

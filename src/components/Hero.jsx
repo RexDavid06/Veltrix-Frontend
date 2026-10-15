@@ -20,7 +20,7 @@ export default function Hero({ onNavigate }) {
       </div>
       <div className="hero-visual">
         <div className="visual-glow" />
-        <div className="floating-label label-top"><span className="live-dot" /> MARKET OVERVIEW <b>DEMO</b></div>
+        <div className="floating-label label-top"><span className="live-dot" /> LIVE MARKET OVERVIEW <b>REAL-TIME</b></div>
         <div className="chart-card">
           <div className="chart-top">
             <div><span className="muted small">PORTFOLIO VALUE</span><div className="chart-value">$24,680.50</div></div>

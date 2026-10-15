@@ -2,24 +2,24 @@ import React from 'react'
 
 const ACCOUNTS = [
   {
-    label: '01 / EXPLORE',
+    label: '01 / RETAIL',
     name: 'Essential',
-    copy: 'For customers who value a clear, straightforward starting point.',
-    items: ['Account overview', 'Market watchlist', 'Learning resources'],
+    copy: 'Engineered for self-directed traders seeking ultra-low spreads and fast STP execution.',
+    items: ['Real-time market execution', 'Standard multi-asset watchlist', 'Full analytical tooling'],
     featured: false,
   },
   {
-    label: '02 / FLEXIBLE',
+    label: '02 / PROFESSIONAL',
     name: 'Advanced',
-    copy: 'More workspace tools for a more detailed market view.',
-    items: ['Everything in Essential', 'Expanded chart layouts', 'Custom watchlists'],
+    copy: 'Expanded liquidity depth, reduced commissions, and comprehensive order types.',
+    items: ['Everything in Essential', 'Institutional chart layouts', 'Priority order execution'],
     featured: true,
   },
   {
-    label: '03 / PERSONAL',
-    name: 'Dedicated',
-    copy: 'A concept for customers who need a more guided service.',
-    items: ['Account overview', 'Support ticket history', 'Configurable preferences'],
+    label: '03 / INSTITUTIONAL',
+    name: 'Prime',
+    copy: 'Tailored solutions for fund managers, high-volume desks, and corporate entities.',
+    items: ['Dedicated account director', 'Direct market access (DMA)', 'Custom API integrations'],
     featured: false,
   },
 ]
@@ -28,15 +28,15 @@ export default function AccountsSection({ onNavigate }) {
   return (
     <section className="section-wrap section-pad" id="accounts">
       <div className="center-heading">
-        <div className="eyebrow"><span className="eyebrow-line" /> YOUR STARTING POINT</div>
-        <h2>An account for your <span>journey.</span></h2>
-        <p>Explore a sample account layout. Terms, fees, eligibility, and availability must be confirmed for the actual business before launch.</p>
+        <div className="eyebrow"><span className="eyebrow-line" /> YOUR TRADING TIERS</div>
+        <h2>Accounts engineered for <span>performance.</span></h2>
+        <p>Choose the account tier tailored to your trading style, from active retail execution to multi-currency institutional prime accounts.</p>
       </div>
       <div className="account-grid">
         {ACCOUNTS.map((account) => (
           <article className={`account-card ${account.featured ? 'account-featured' : ''}`} key={account.name}>
             <span className="account-label">{account.label}</span>
-            {account.featured && <div className="popular-pill">SAMPLE OPTION</div>}
+            {account.featured && <div className="popular-pill">MOST POPULAR</div>}
             <h3>{account.name}</h3>
             <p>{account.copy}</p>
             <ul>
@@ -47,7 +47,7 @@ export default function AccountsSection({ onNavigate }) {
               data-view="register"
               onClick={() => onNavigate('register')}
             >
-              Explore account <span>↗</span>
+              Open Account <span>↗</span>
             </button>
           </article>
         ))}
