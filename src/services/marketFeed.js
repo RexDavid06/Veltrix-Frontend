@@ -150,34 +150,21 @@ async function fetchForexRates() {
     const rates = data.rates || {}
     const map = {}
 
+    // The rates feed exposes spot prices only, not a previous close, so the
+    // daily change is genuinely unknown. Report it as such instead of showing
+    // an invented percentage next to a live price.
+    const unavailable = { change: null, changeText: '—', tone: 'neutral' }
+
     if (rates.EUR && rates.EUR > 0) {
       const eurUsd = 1 / rates.EUR
-      map['EURUSD'] = {
-        price: eurUsd,
-        priceFormatted: eurUsd.toFixed(4),
-        change: 0.18,
-        changeText: '+0.18%',
-        tone: 'positive',
-      }
+      map['EURUSD'] = { price: eurUsd, priceFormatted: eurUsd.toFixed(4), ...unavailable }
     }
     if (rates.GBP && rates.GBP > 0) {
       const gbpUsd = 1 / rates.GBP
-      map['GBPUSD'] = {
-        price: gbpUsd,
-        priceFormatted: gbpUsd.toFixed(4),
-        change: 0.08,
-        changeText: '+0.08%',
-        tone: 'positive',
-      }
+      map['GBPUSD'] = { price: gbpUsd, priceFormatted: gbpUsd.toFixed(4), ...unavailable }
     }
     if (rates.JPY && rates.JPY > 0) {
-      map['USDJPY'] = {
-        price: rates.JPY,
-        priceFormatted: rates.JPY.toFixed(2),
-        change: -0.15,
-        changeText: '−0.15%',
-        tone: 'negative',
-      }
+      map['USDJPY'] = { price: rates.JPY, priceFormatted: rates.JPY.toFixed(2), ...unavailable }
     }
 
     return map

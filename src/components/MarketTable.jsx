@@ -80,7 +80,11 @@ export function MarketTable({
     if (assetFilter === 'WATCHLIST') return watchlistSymbols.includes(row[0]) || watchlistSymbols.includes(row[0].replace('/', '-'))
     if (assetFilter === 'CRYPTO') return row[0].includes('BTC') || row[0].includes('ETH') || row[1].toLowerCase().includes('bitcoin') || row[1].toLowerCase().includes('ethereum')
     if (assetFilter === 'EQUITY') return !row[0].includes('/') && !row[0].includes('-')
-    if (assetFilter === 'FOREX') return row[0].includes('/') || row[0].endsWith('=X')
+    if (assetFilter === 'FOREX') {
+      // Only fiat currency pairs — a bare "/" also matches BTC/USD, ETH/USD, XAU/USD.
+      const fiat = '(USD|EUR|GBP|JPY|AUD|CAD|CHF|NZD)'
+      return new RegExp(`^${fiat}/${fiat}$`).test(row[0]) || row[0].endsWith('=X')
+    }
     return true
   })
 

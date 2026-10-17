@@ -501,9 +501,9 @@ export default function App() {
     const clientEmail = profile?.email || ''
 
     const fullSubject = subject.includes(accountRef) ? subject : `[${accountRef} · ${clientName}] ${subject}`
-    const detailedMessage = message.includes('CLIENT CREDENTIALS')
+    const detailedMessage = message.includes('CLIENT ACCOUNT DETAILS')
       ? message
-      : `[VERIFIED CLIENT CREDENTIALS]\nAccount: ${accountRef}\nHolder: ${clientName}\nEmail: ${clientEmail}\nKYC: ${profile?.is_verified ? 'Verified' : 'Pending Review'}\n\n[MESSAGE]\n${message}`
+      : `[CLIENT ACCOUNT DETAILS]\nAccount: ${accountRef}\nHolder: ${clientName}\nEmail: ${clientEmail}\nKYC: ${profile?.is_verified ? 'Verified' : 'Pending Review'}\n\n[MESSAGE]\n${message}`
 
     try {
       const res = await api.post(`${API_ROOT}/support/`, { subject: fullSubject, message: detailedMessage }, authHeaders)
@@ -538,9 +538,9 @@ export default function App() {
     const clientEmail = profile?.email || ''
 
     const fullSubject = subject.includes(accountRef) ? subject : `[${accountRef} · ${clientName}] ${subject}`
-    const detailedMessage = initial_message.includes('CLIENT CREDENTIALS')
+    const detailedMessage = initial_message.includes('CLIENT ACCOUNT DETAILS')
       ? initial_message
-      : `[VERIFIED CLIENT CREDENTIALS]\nAccount: ${accountRef}\nHolder: ${clientName}\nEmail: ${clientEmail}\nKYC: ${profile?.is_verified ? 'Verified' : 'Pending Review'}\n\n[INQUIRY]\n${initial_message}`
+      : `[CLIENT ACCOUNT DETAILS]\nAccount: ${accountRef}\nHolder: ${clientName}\nEmail: ${clientEmail}\nKYC: ${profile?.is_verified ? 'Verified' : 'Pending Review'}\n\n[INQUIRY]\n${initial_message}`
 
     try {
       const res = await api.post(
