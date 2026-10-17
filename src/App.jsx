@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import api, { API_ROOT, getWsUrl, setLogoutHandler, WS_ENABLED } from './api'
+import api, { API_ROOT, getWsUrl, revokeStoredSession, setLogoutHandler, WS_ENABLED } from './api'
 import DemoBanner from './components/DemoBanner'
 import SiteHeader from './components/SiteHeader'
 import Landing from './components/Landing'
@@ -62,8 +62,30 @@ function extractApiError(error, fallback) {
       if (typeof value === 'string' && value) return value
     }
   }
+  if (!error?.response && error?.message === 'Network Error') {
+    return 'Cannot reach the server. Please check your connection and try again.'
+  }
   if (error?.message) return String(error.message)
   return fallback
+}
+
+function AccessDenied({ onNavigate, authenticated }) {
+  return (
+    <div className="section-wrap">
+      <div className="form-card" style={{ textAlign: 'center' }}>
+        <div className="eyebrow"><span className="eyebrow-line" /> RESTRICTED AREA</div>
+        <h2>Access denied</h2>
+        <p>This area is limited to authorized operations staff.</p>
+        <button
+          className="btn btn-primary"
+          type="button"
+          onClick={() => onNavigate(authenticated ? 'portal' : 'login')}
+        >
+          {authenticated ? 'Back to workspace' : 'Sign in'} <span>↗</span>
+        </button>
+      </div>
+    </div>
+  )
 }
 
 export default function App() {
@@ -125,6 +147,7 @@ export default function App() {
   }, [])
 
   const logout = useCallback((message = 'Signed out.') => {
+    revokeStoredSession()
     clearStoredTokens()
     setToken('')
     setDashboard(null)
@@ -648,9 +671,17 @@ export default function App() {
     onLogout: logout,
   }
 
+  const isAdminUser = Boolean(profile && (profile.is_staff || profile.role === 'admin'))
+
   let appContent = null
   if (isAdmin) {
-    appContent = <AdminViews view={view} ctx={ctx} onNavigate={navigate} showToast={showToast} />
+    if (token && !profile) {
+      appContent = <div className="section-wrap"><div className="form-card"><p>Loading…</p></div></div>
+    } else if (isAdminUser) {
+      appContent = <AdminViews view={view} ctx={ctx} onNavigate={navigate} showToast={showToast} />
+    } else {
+      appContent = <AccessDenied onNavigate={navigate} authenticated={Boolean(token)} />
+    }
   } else if (APP_VIEWS.includes(view)) {
     appContent = <AppViews view={view} ctx={ctx} />
   } else {

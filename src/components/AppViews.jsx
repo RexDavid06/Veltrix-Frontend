@@ -4,10 +4,10 @@ import DataTable from './DataTable'
 import { MarketTable, MarketRowsTable } from './MarketTable'
 import { DEMO_TRANSACTIONS, formatCurrency, formatPrice } from '../data'
 
-function Shell({ view, title, subtitle, admin, onNavigate, children }) {
+function Shell({ view, title, subtitle, admin, onNavigate, onLogout, children }) {
   return (
     <div className="app-shell">
-      <AppSidebar active={view} admin={admin} onNavigate={onNavigate} />
+      <AppSidebar active={view} admin={admin} onNavigate={onNavigate} onLogout={onLogout} />
       <section className="app-main">
         <div className="app-topline">
           <div>
@@ -431,6 +431,7 @@ function Kyc({ ctx }) {
 function Support({ ctx }) {
   const {
     token,
+    profile,
     tickets,
     conversations = [],
     onCreateTicket,
@@ -743,6 +744,7 @@ export default function AppViews({ view, ctx }) {
         title="Trading Workspace"
         subtitle="Overview of your portfolio, active positions, and market movements."
         onNavigate={ctx.onNavigate}
+        onLogout={ctx.onLogout}
       >
         <Overview ctx={ctx} />
       </Shell>
@@ -755,6 +757,7 @@ export default function AppViews({ view, ctx }) {
         title="Global Markets"
         subtitle="Explore tradable equities, digital assets, commodities, and currencies."
         onNavigate={ctx.onNavigate}
+        onLogout={ctx.onLogout}
       >
         {ctx.marketLoading ? (
           <div className="app-card"><div className="muted-copy">Loading global market feeds…</div></div>
@@ -777,6 +780,7 @@ export default function AppViews({ view, ctx }) {
         title="Portfolio Management"
         subtitle="Real-time holdings, asset allocation, and performance analytics."
         onNavigate={ctx.onNavigate}
+        onLogout={ctx.onLogout}
       >
         <Portfolio ctx={ctx} />
       </Shell>
@@ -789,6 +793,7 @@ export default function AppViews({ view, ctx }) {
         title="Trading Accounts"
         subtitle="Manage your brokerage accounts and trading profiles."
         onNavigate={ctx.onNavigate}
+        onLogout={ctx.onLogout}
       >
         <Accounts ctx={ctx} />
       </Shell>
@@ -800,7 +805,7 @@ export default function AppViews({ view, ctx }) {
       deposits: ['Deposit Funds', 'Deposit capital for active market trading.'],
       withdrawals: ['Withdrawals Portal', 'Request capital withdrawals to verified settlement accounts.'],
     }[view]
-    return <Shell view={view} title={titles[0]} subtitle={titles[1]} onNavigate={ctx.onNavigate}><Money view={view} ctx={ctx} /></Shell>
+    return <Shell view={view} title={titles[0]} subtitle={titles[1]} onNavigate={ctx.onNavigate} onLogout={ctx.onLogout}><Money view={view} ctx={ctx} /></Shell>
   }
   if (view === 'transactions') {
     return (
@@ -809,6 +814,7 @@ export default function AppViews({ view, ctx }) {
         title="Ledger & Statements"
         subtitle="Audited transaction history and trade execution statements."
         onNavigate={ctx.onNavigate}
+        onLogout={ctx.onLogout}
       >
         <Transactions ctx={ctx} />
       </Shell>
@@ -821,6 +827,7 @@ export default function AppViews({ view, ctx }) {
         title="Identity Verification"
         subtitle="Regulatory compliance and account verification status."
         onNavigate={ctx.onNavigate}
+        onLogout={ctx.onLogout}
       >
         <Kyc ctx={ctx} />
       </Shell>
@@ -833,6 +840,7 @@ export default function AppViews({ view, ctx }) {
         title="Client Support Desk"
         subtitle="Direct communication with institutional support specialists."
         onNavigate={ctx.onNavigate}
+        onLogout={ctx.onLogout}
       >
         <Support ctx={ctx} />
       </Shell>
@@ -845,6 +853,7 @@ export default function AppViews({ view, ctx }) {
         title="Account Settings"
         subtitle="Security, notifications, and client profile preferences."
         onNavigate={ctx.onNavigate}
+        onLogout={ctx.onLogout}
       >
         <Settings ctx={ctx} />
       </Shell>

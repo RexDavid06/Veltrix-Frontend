@@ -1,7 +1,7 @@
 import React from 'react'
 import { ADMIN_ITEMS, NAV_ITEMS } from '../data'
 
-export default function AppSidebar({ active, admin = false, onNavigate }) {
+export default function AppSidebar({ active, admin = false, onNavigate, onLogout }) {
   const items = admin ? ADMIN_ITEMS : NAV_ITEMS
   let lastGroup = ''
 
@@ -27,7 +27,11 @@ export default function AppSidebar({ active, admin = false, onNavigate }) {
         )
       })}
       <div className="sidebar-title">CLIENT ACCOUNT</div>
-      <button className="side-link" data-view="login" onClick={() => onNavigate('login')}>
+      <button
+        className="side-link"
+        data-view="login"
+        onClick={() => (onLogout ? onLogout() : onNavigate('login'))}
+      >
         <span className="nav-icon">↪</span>Sign out
       </button>
     </aside>

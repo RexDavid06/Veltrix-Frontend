@@ -3,10 +3,10 @@ import AppSidebar from './AppSidebar'
 import DataTable from './DataTable'
 import { DEMO_TRANSACTIONS } from '../data'
 
-function AdminShell({ view, title, subtitle, onNavigate, children }) {
+function AdminShell({ view, title, subtitle, onNavigate, onLogout, children }) {
   return (
     <div className="app-shell">
-      <AppSidebar active={view} admin onNavigate={onNavigate} />
+      <AppSidebar active={view} admin onNavigate={onNavigate} onLogout={onLogout} />
       <section className="app-main">
         <div className="app-topline">
           <div>
@@ -30,6 +30,7 @@ export default function AdminViews({ view, ctx = {}, onNavigate, showToast = () 
     onSendMessage,
     onResolveConversation,
     onReopenConversation,
+    onLogout,
   } = ctx
 
   const [selectedConvoId, setSelectedConvoId] = useState(null)
@@ -84,6 +85,7 @@ export default function AdminViews({ view, ctx = {}, onNavigate, showToast = () 
         title="Operations Control Centre"
         subtitle="Institutional operations, compliance oversight, and risk management."
         onNavigate={onNavigate}
+        onLogout={onLogout}
       >
         <div className="admin-warn">
           Authorized personnel only. All client support queries and incoming tickets are aggregated directly from the backend into this queue.
@@ -142,6 +144,7 @@ export default function AdminViews({ view, ctx = {}, onNavigate, showToast = () 
         title="Client Accounts Directory"
         subtitle="Registered retail, professional, and institutional client accounts."
         onNavigate={onNavigate}
+        onLogout={onLogout}
       >
         <div className="admin-warn">
           Protected client records. Modifications and account actions require compliance supervisor authorization.
@@ -169,6 +172,7 @@ export default function AdminViews({ view, ctx = {}, onNavigate, showToast = () 
         title="KYC Verification Queue"
         subtitle="Identity verification, AML screening, and regulatory accreditation."
         onNavigate={onNavigate}
+        onLogout={onLogout}
       >
         <div className="admin-warn">
           Customer document validation must comply with FATF international anti-money laundering standards.
@@ -199,6 +203,7 @@ export default function AdminViews({ view, ctx = {}, onNavigate, showToast = () 
         title="Transaction Monitoring & AML"
         subtitle="Real-time settlement surveillance and high-value transfer screening."
         onNavigate={onNavigate}
+        onLogout={onLogout}
       >
         <div className="admin-warn">
           Automated transaction monitoring active. Flagged transactions are placed in temporary compliance hold.
@@ -241,6 +246,7 @@ function getClientDetails(item, fallbackProfile) {
         title="Client Services Desk — Staff Inbox"
         subtitle="Incoming customer support requests and real-time live chat conversations."
         onNavigate={onNavigate}
+        onLogout={onLogout}
       >
         <div className="admin-warn">
           All client conversations and tickets submitted by users are displayed below with their authenticated client credentials. You can inspect message history and dispatch official staff replies directly back to the client.
@@ -465,6 +471,7 @@ function getClientDetails(item, fallbackProfile) {
         title="Regulatory Audit Trail"
         subtitle="Immutable security logs and administrative action history."
         onNavigate={onNavigate}
+        onLogout={onLogout}
       >
         <div className="admin-warn">
           Tamper-evident audit trail recording all staff operations and account modifications.

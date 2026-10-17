@@ -21,13 +21,50 @@ const RAW_API = import.meta.env.VITE_API_URL !== undefined
     ? import.meta.env.VITE_API_BASE_URL
     : (import.meta.env.DEV ? '' : PROD_BACKEND_URL)
 
-let API_ROOT = String(RAW_API).replace(/\/$/, '')
-if (!API_ROOT.endsWith('/api')) API_ROOT = API_ROOT ? `${API_ROOT}/api` : '/api'
+// Loopback hosts are only reachable on the visitor's own machine, so a
+// production build must never target them: the browser blocks the http://
+// request from an https:// page (mixed content) or nothing is listening, and
+// axios surfaces both cases as a bare "Network Error" on register/login.
+function isLoopbackHost(hostname = '') {
+  const host = String(hostname).toLowerCase()
+  return host === 'localhost' || host === '127.0.0.1' || host === '::1'
+    || host === '[::1]' || host.endsWith('.localhost')
+}
 
-export const BACKEND_URL = import.meta.env.VITE_BACKEND_URL
+function currentPageLocation() {
+  if (typeof window === 'undefined' || !window.location) return null
+  return { hostname: window.location.hostname, origin: window.location.origin || '' }
+}
+
+function guardLoopback(url, page = currentPageLocation()) {
+  if (typeof url !== 'string' || !url.startsWith('http')) return url
+  if (!page || isLoopbackHost(page.hostname)) return url
+  try {
+    if (isLoopbackHost(new URL(url, page.origin || undefined).hostname)) {
+      return PROD_BACKEND_URL
+    }
+  } catch (e) {
+    // unparsable URL: keep the original value
+  }
+  return url
+}
+
+// Exported for tests. Normalizes a raw API base to `<base>/api` and swaps a
+// loopback base for the deployed backend when the page is served remotely.
+export function resolveApiRoot(rawApi, page = currentPageLocation()) {
+  let root = String(guardLoopback(String(rawApi ?? ''), page)).replace(/\/$/, '')
+  if (!root.endsWith('/api')) root = root ? `${root}/api` : '/api'
+  return root
+}
+
+const API_ROOT = resolveApiRoot(RAW_API)
+
+const RAW_BACKEND = import.meta.env.VITE_BACKEND_URL
   || import.meta.env.VITE_API_URL
   || import.meta.env.VITE_API_BASE_URL
   || PROD_BACKEND_URL
+
+export const BACKEND_URL = guardLoopback(RAW_BACKEND)
 
 export function getWsUrl(path = '') {
   const cleanPath = path.startsWith('/') ? path : `/${path}`
@@ -103,6 +140,19 @@ function getStoredRefreshToken() {
     return sessionStorage.getItem('veltrix_refresh') || localStorage.getItem('veltrix_refresh') || null
   } catch (e) {
     return null
+  }
+}
+
+// Best-effort server-side logout: blacklist the stored refresh token so it can
+// no longer be used. Uses the interceptor-free client so a failure here can
+// never re-enter the refresh flow (or block the local sign-out).
+export function revokeStoredSession() {
+  try {
+    const refresh = getStoredRefreshToken()
+    if (!refresh) return
+    refreshClient.post(`${API_ROOT}/auth/logout/`, { refresh }).catch(() => {})
+  } catch (e) {
+    // revoking is best-effort; never block sign-out
   }
 }
 
