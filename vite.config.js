@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-const BACKEND_URL = process.env.VITE_BACKEND_URL || 'https://ais-dev-kpzdvdmrek7cuieuepr6ud-40509995081.europe-west3.run.app'
+const BACKEND_URL = process.env.VITE_BACKEND_URL || process.env.VITE_API_URL || 'https://veltrix-backend-5cwa.onrender.com'
 
 export default defineConfig({
   plugins: [react()],

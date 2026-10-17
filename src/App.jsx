@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import api, { API_ROOT, getWsUrl, setLogoutHandler } from './api'
+import api, { API_ROOT, getWsUrl, setLogoutHandler, WS_ENABLED } from './api'
 import DemoBanner from './components/DemoBanner'
 import SiteHeader from './components/SiteHeader'
 import Landing from './components/Landing'
@@ -18,19 +18,65 @@ import {
   quoteToRow,
 } from './services/marketFeed'
 
-const AUTH_VIEWS = ['login', 'register', 'forgot']
+const AUTH_VIEWS = ['login', 'register', 'forgot', 'reset', 'verify']
 const APP_VIEWS = [
   'portal', 'markets', 'portfolio', 'accounts', 'wallet', 'deposits',
   'withdrawals', 'transactions', 'kyc', 'portal-support', 'settings',
 ]
 const ADMIN_VIEWS = ['admin', 'admin-customers', 'admin-kyc', 'admin-transactions', 'admin-support', 'admin-audit']
 
+function readResetCreds() {
+  if (typeof window === 'undefined') return null
+  const params = new URLSearchParams(window.location.search)
+  const uid = params.get('reset_uid')
+  const resetToken = params.get('reset_token')
+  return uid && resetToken ? { uid, token: resetToken } : null
+}
+
+function readVerifyToken() {
+  if (typeof window === 'undefined') return null
+  return new URLSearchParams(window.location.search).get('verify_token')
+}
+
+function clearQueryParams(...names) {
+  if (typeof window === 'undefined' || !window.history?.replaceState) return
+  const url = new URL(window.location.href)
+  names.forEach((name) => url.searchParams.delete(name))
+  window.history.replaceState({}, '', url.pathname + (url.searchParams.toString() ? `?${url.searchParams}` : '') + url.hash)
+}
+
+function clearResetParams() {
+  clearQueryParams('reset_uid', 'reset_token')
+}
+
+// Turn a DRF error response into a single human-readable string.
+function extractApiError(error, fallback) {
+  const data = error?.response?.data
+  if (typeof data === 'string' && data.trim()) return data
+  if (data && typeof data === 'object') {
+    if (typeof data.detail === 'string') return data.detail
+    if (typeof data.message === 'string') return data.message
+    for (const key of ['email', 'password', 'new_password', 'uid', 'token', 'non_field_errors']) {
+      const value = data[key]
+      if (Array.isArray(value) && value.length) return String(value[0])
+      if (typeof value === 'string' && value) return value
+    }
+  }
+  if (error?.message) return String(error.message)
+  return fallback
+}
+
 export default function App() {
-  const [view, setView] = useState('home')
+  const initialResetCreds = readResetCreds()
+  const initialVerifyToken = readVerifyToken()
+  const initialAuthView = initialResetCreds ? 'reset' : initialVerifyToken ? 'verify' : 'home'
+  const [view, setView] = useState(initialAuthView)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [toast, setToast] = useState(null)
-  const [authMode, setAuthMode] = useState('login')
+  const [authMode, setAuthMode] = useState(initialAuthView === 'home' ? 'login' : initialAuthView)
   const [authError, setAuthError] = useState('')
+  const [resetCreds, setResetCreds] = useState(initialResetCreds)
+  const [verifyToken, setVerifyToken] = useState(initialVerifyToken)
   const [token, setToken] = useState(() => sessionStorage.getItem('veltrix_token') || localStorage.getItem('veltrix_token') || '')
   const [liveQuotes, setLiveQuotes] = useState(DEFAULT_LIVE_MARKETS)
   const [marketRows, setMarketRows] = useState(() => DEFAULT_LIVE_MARKETS.map(quoteToRow))
@@ -95,6 +141,25 @@ export default function App() {
     setLogoutHandler(logout)
   }, [logout])
 
+  // Confirm an email address when the user lands from a verification link.
+  useEffect(() => {
+    if (!verifyToken) return undefined
+    let active = true
+    api.get(`${API_ROOT}/auth/verify/`, { params: { token: verifyToken } })
+      .then(() => {
+        if (!active) return
+        clearQueryParams('verify_token')
+        setVerifyToken(null)
+        showToast('Email verified. You can sign in now.')
+        navigate('login')
+      })
+      .catch((error) => {
+        if (!active) return
+        setAuthError(extractApiError(error, 'This verification link is invalid or has expired.'))
+      })
+    return () => { active = false }
+  }, [verifyToken, navigate, showToast])
+
   // Fetch real-time live prices from free, accurate public feeds (Binance, Open Exchange Rates, Live Charts)
   useEffect(() => {
     let active = true
@@ -121,8 +186,11 @@ export default function App() {
     }
   }, [])
 
-  // Connect WebSocket to /ws/market/ if backend streaming is active
+  // Connect WebSocket to /ws/market/ only when a WS endpoint is configured.
+  // The backend does not ship a Channels routing layer, so we avoid repeated
+  // failed sockets by requiring VITE_WS_URL to opt in.
   useEffect(() => {
+    if (!WS_ENABLED) return undefined
     let ws = null
     try {
       const wsUrl = getWsUrl('/ws/market/')
@@ -236,7 +304,10 @@ export default function App() {
     event.preventDefault()
     setAuthError('')
     const form = new FormData(event.target)
-    const email = String(form.get('email') || '').trim()
+    // Backend stores accounts with a lowercased/trimmed email as the username,
+    // so normalize here for both registration and login (Django usernames are
+    // case-sensitive).
+    const email = String(form.get('email') || '').trim().toLowerCase()
     const password = String(form.get('password') || '')
     const fullName = String(form.get('fullName') || '').trim()
     const remember = Boolean(form.get('remember'))
@@ -278,19 +349,54 @@ export default function App() {
       showToast(authMode === 'register' ? 'Account registered successfully. Welcome to VELTRIX.' : 'Signed in to VELTRIX Brokerage.')
       navigate('portal')
     } catch (error) {
-      const data = error?.response?.data
-      setAuthError(
-        data?.detail
-        || data?.message
-        || (Array.isArray(data?.email) ? data.email[0] : null)
-        || (error?.message ? String(error.message) : 'Authentication failed. Check your details and try again.')
-      )
+      setAuthError(extractApiError(error, 'Authentication failed. Check your details and try again.'))
     }
   }
 
-  const handleForgot = (event) => {
+  const handleForgot = async (event) => {
     event.preventDefault()
-    showToast('Password recovery instructions sent to your email.')
+    setAuthError('')
+    const form = new FormData(event.target)
+    const email = String(form.get('email') || '').trim().toLowerCase()
+    try {
+      await api.post(`${API_ROOT}/auth/password-reset/`, { email })
+      showToast('If that email is registered, a password reset link is on its way.')
+      navigate('login')
+    } catch (error) {
+      setAuthError(extractApiError(error, 'Could not send the reset link. Please try again.'))
+    }
+  }
+
+  const handleReset = async (event) => {
+    event.preventDefault()
+    setAuthError('')
+    const form = new FormData(event.target)
+    const newPassword = String(form.get('new_password') || '')
+    const confirmPassword = String(form.get('confirm_password') || '')
+
+    if (!resetCreds?.uid || !resetCreds?.token) {
+      setAuthError('This reset link is invalid. Please request a new one.')
+      return
+    }
+
+    if (newPassword !== confirmPassword) {
+      setAuthError('The passwords do not match.')
+      return
+    }
+
+    try {
+      await api.post(`${API_ROOT}/auth/password-reset/confirm/`, {
+        uid: resetCreds.uid,
+        token: resetCreds.token,
+        new_password: newPassword,
+      })
+      clearResetParams()
+      setResetCreds(null)
+      showToast('Password updated. Please sign in with your new password.')
+      navigate('login')
+    } catch (error) {
+      setAuthError(extractApiError(error, 'This reset link is invalid or has expired. Please request a new one.'))
+    }
   }
 
   // Execute trade order on /api/orders/
@@ -552,7 +658,7 @@ export default function App() {
       <div className="section-wrap">
         <AuthView
           mode={authMode}
-          onSubmit={authMode === 'forgot' ? handleForgot : handleAuth}
+          onSubmit={authMode === 'forgot' ? handleForgot : authMode === 'reset' ? handleReset : handleAuth}
           error={authError}
           onNavigate={navigate}
         />

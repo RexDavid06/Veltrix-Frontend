@@ -195,7 +195,7 @@ export default function TradeModal({ isOpen, onClose, initialSymbol = 'AAPL', on
           </div>
 
           <div className="form-note" style={{ marginTop: 14 }}>
-            Direct STP order routing executed with institutional liquidity and instantaneous ledger settlement.
+            Demo paper order. No real order is routed, no real liquidity is used, and no funds move. Balances and positions are simulated for demonstration.
           </div>
         </form>
       </div>

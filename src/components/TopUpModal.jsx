@@ -144,7 +144,7 @@ export default function TopUpModal({ isOpen, onClose, onTopUp, currentBalance = 
           </div>
 
           <div className="form-note" style={{ marginTop: 14 }}>
-            Credits funds directly to your verified brokerage account and records a completed deposit transaction on the ledger.
+            Demo top-up. Credits simulated funds to your demo balance for preview purposes only — no real deposit is made, no funds are held, and no payment details are collected.
           </div>
         </form>
       </div>

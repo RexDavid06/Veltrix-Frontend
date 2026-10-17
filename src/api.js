@@ -8,13 +8,26 @@
 
 import axios from 'axios'
 
+// API base URL resolution order:
+//   1. VITE_API_URL          (preferred)
+//   2. VITE_API_BASE_URL     (accepted alias)
+//   3. In development, '' -> Vite's `/api` proxy target (see vite.config.js)
+//   4. In production, the deployed Render backend
+const PROD_BACKEND_URL = 'https://veltrix-backend-5cwa.onrender.com'
+
 const RAW_API = import.meta.env.VITE_API_URL !== undefined
   ? import.meta.env.VITE_API_URL
-  : ''
-let API_ROOT = RAW_API.replace(/\/$/, '')
+  : import.meta.env.VITE_API_BASE_URL !== undefined
+    ? import.meta.env.VITE_API_BASE_URL
+    : (import.meta.env.DEV ? '' : PROD_BACKEND_URL)
+
+let API_ROOT = String(RAW_API).replace(/\/$/, '')
 if (!API_ROOT.endsWith('/api')) API_ROOT = API_ROOT ? `${API_ROOT}/api` : '/api'
 
-export const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL || 'https://ais-dev-kpzdvdmrek7cuieuepr6ud-40509995081.europe-west3.run.app'
+export const BACKEND_URL = import.meta.env.VITE_BACKEND_URL
+  || import.meta.env.VITE_API_URL
+  || import.meta.env.VITE_API_BASE_URL
+  || PROD_BACKEND_URL
 
 export function getWsUrl(path = '') {
   const cleanPath = path.startsWith('/') ? path : `/${path}`
@@ -26,18 +39,39 @@ export function getWsUrl(path = '') {
   return `${protocol}//${host}${cleanPath}`
 }
 
+// WebSocket streaming is opt-in: only connect when VITE_WS_URL is configured.
+// The Django backend in this repository does not expose a Channels routing
+// layer, so connecting by default would just produce repeated failed sockets.
+export const WS_ENABLED = Boolean(import.meta.env.VITE_WS_URL)
+
 const api = axios.create()
+
+// A separate instance WITHOUT interceptors is used for the refresh call itself.
+// Otherwise a 401 from the refresh endpoint would re-enter the response
+// interceptor, queue behind `isRefreshing`, and never settle (a hang instead of
+// a clean logout).
+const refreshClient = axios.create()
+
+// Endpoints that must never trigger the refresh-and-retry cycle.
+function isAuthEndpoint(url = '') {
+  return url.includes('/auth/token/refresh/') || url.includes('/auth/token/')
+}
 
 let isRefreshing = false
 let refreshSubscribers = []
 let logoutHandler = null
 
-function subscribeTokenRefresh(cb) {
-  refreshSubscribers.push(cb)
+function subscribeTokenRefresh(resolve, reject) {
+  refreshSubscribers.push({ resolve, reject })
 }
 
 function onRefreshed(accessToken) {
-  refreshSubscribers.forEach((cb) => cb(accessToken))
+  refreshSubscribers.forEach(({ resolve }) => resolve(accessToken))
+  refreshSubscribers = []
+}
+
+function onRefreshFailed(error) {
+  refreshSubscribers.forEach(({ reject }) => reject(error))
   refreshSubscribers = []
 }
 
@@ -51,6 +85,46 @@ function clearStoredTokens() {
     sessionStorage.removeItem('veltrix_refresh')
     localStorage.removeItem('veltrix_token')
     localStorage.removeItem('veltrix_refresh')
+  } catch (e) {
+    // storage access issues are not a secret
+  }
+}
+
+function getStoredToken() {
+  try {
+    return sessionStorage.getItem('veltrix_token') || localStorage.getItem('veltrix_token') || null
+  } catch (e) {
+    return null
+  }
+}
+
+function getStoredRefreshToken() {
+  try {
+    return sessionStorage.getItem('veltrix_refresh') || localStorage.getItem('veltrix_refresh') || null
+  } catch (e) {
+    return null
+  }
+}
+
+function bearerOf(config) {
+  const header = config?.headers?.Authorization
+  return typeof header === 'string' && header.startsWith('Bearer ') ? header.slice(7) : null
+}
+
+function persistAccessToken(accessToken, nextRefreshToken) {
+  try {
+    sessionStorage.setItem('veltrix_token', accessToken)
+    if (nextRefreshToken) {
+      sessionStorage.setItem('veltrix_refresh', nextRefreshToken)
+    }
+
+    const existingPersisted = Boolean(localStorage.getItem('veltrix_token') || localStorage.getItem('veltrix_refresh'))
+    if (existingPersisted) {
+      localStorage.setItem('veltrix_token', accessToken)
+      if (nextRefreshToken) {
+        localStorage.setItem('veltrix_refresh', nextRefreshToken)
+      }
+    }
   } catch (e) {
     // storage access issues are not a secret
   }
@@ -74,33 +148,43 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error?.config
     const status = error?.response?.status
+    const requestUrl = originalRequest?.url || ''
 
-    if (status !== 401 || !originalRequest || originalRequest._retry) {
+    if (status !== 401 || !originalRequest || originalRequest._retry || isAuthEndpoint(requestUrl)) {
       return Promise.reject(error)
     }
 
     originalRequest._retry = true
 
+    // Another in-flight refresh may have already rotated the token between this
+    // request being sent and its 401 arriving. If so, don't refresh again —
+    // just retry with the current token.
+    const currentToken = getStoredToken()
+    const usedToken = bearerOf(originalRequest)
+    if (currentToken && usedToken && currentToken !== usedToken) {
+      originalRequest.headers = originalRequest.headers || {}
+      originalRequest.headers.Authorization = `Bearer ${currentToken}`
+      return api(originalRequest)
+    }
+
+    // Another request is already refreshing: wait for its result and retry.
     if (isRefreshing) {
       return new Promise((resolve, reject) => {
-        subscribeTokenRefresh((accessToken) => {
-          if (!accessToken) {
-            reject(error)
-            return
-          }
-          originalRequest.headers = originalRequest.headers || {}
-          originalRequest.headers.Authorization = `Bearer ${accessToken}`
-          resolve(api(originalRequest))
-        })
+        subscribeTokenRefresh(resolve, reject)
+      }).then((accessToken) => {
+        originalRequest.headers = originalRequest.headers || {}
+        originalRequest.headers.Authorization = `Bearer ${accessToken}`
+        return api(originalRequest)
       })
     }
 
     isRefreshing = true
 
-    const refreshToken = sessionStorage.getItem('veltrix_refresh') || localStorage.getItem('veltrix_refresh')
+    const refreshToken = getStoredRefreshToken()
 
     if (!refreshToken) {
       isRefreshing = false
+      onRefreshFailed(error)
       clearStoredTokens()
       if (typeof logoutHandler === 'function') {
         logoutHandler('Your session has expired. Please sign in again.')
@@ -109,7 +193,7 @@ api.interceptors.response.use(
     }
 
     try {
-      const response = await api.post(`${API_ROOT}/auth/token/refresh/`, { refresh: refreshToken })
+      const response = await refreshClient.post(`${API_ROOT}/auth/token/refresh/`, { refresh: refreshToken })
       const accessToken = response?.data?.access
       const nextRefreshToken = response?.data?.refresh
 
@@ -117,23 +201,7 @@ api.interceptors.response.use(
         throw new Error('Refresh did not return an access token')
       }
 
-      try {
-        sessionStorage.setItem('veltrix_token', accessToken)
-        if (nextRefreshToken) {
-          sessionStorage.setItem('veltrix_refresh', nextRefreshToken)
-        }
-
-        const existingPersisted = Boolean(localStorage.getItem('veltrix_token') || localStorage.getItem('veltrix_refresh'))
-        if (existingPersisted) {
-          localStorage.setItem('veltrix_token', accessToken)
-          if (nextRefreshToken) {
-            localStorage.setItem('veltrix_refresh', nextRefreshToken)
-          }
-        }
-      } catch (e) {
-        // storage access issues are not a secret
-      }
-
+      persistAccessToken(accessToken, nextRefreshToken)
       onRefreshed(accessToken)
 
       originalRequest.headers = originalRequest.headers || {}
@@ -141,6 +209,7 @@ api.interceptors.response.use(
 
       return api(originalRequest)
     } catch (refreshError) {
+      onRefreshFailed(refreshError)
       clearStoredTokens()
       if (typeof logoutHandler === 'function') {
         logoutHandler('Your session has expired. Please sign in again.')
@@ -148,7 +217,6 @@ api.interceptors.response.use(
       return Promise.reject(refreshError)
     } finally {
       isRefreshing = false
-      refreshSubscribers = []
     }
   }
 )

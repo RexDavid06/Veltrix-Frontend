@@ -13,7 +13,7 @@ function AdminShell({ view, title, subtitle, onNavigate, children }) {
             <h1>{title}</h1>
             <p>{subtitle}</p>
           </div>
-          <span className="demo-chip">● ADMIN CONSOLE</span>
+          <span className="demo-chip">● DEMO MODE</span>
         </div>
         {children}
       </section>
@@ -397,7 +397,14 @@ function getClientDetails(item, fallbackProfile) {
 
                   <div className="support-thread" style={{ maxHeight: 340, overflowY: 'auto' }}>
                     {(activeConvo.messages || []).map((msg, idx) => {
-                      const isStaff = msg.sender === 'staff' || msg.sender === 'admin' || (msg.content && msg.content.startsWith('[STAFF RESPONSE]'))
+                      // `sender` is a nested user object from the backend;
+                      // treat staff/admin senders (or staff-prefixed content)
+                      // as the support side of the thread.
+                      const s = msg.sender
+                      const senderIsStaff = s && typeof s === 'object'
+                        ? (s.role === 'admin' || s.is_staff === true)
+                        : (s === 'staff' || s === 'admin')
+                      const isStaff = senderIsStaff || (msg.content && msg.content.startsWith('[STAFF RESPONSE]'))
                       return (
                         <div className={`chat-bubble ${isStaff ? 'agent' : ''}`} key={msg.id || idx}>
                           <span className="chat-meta">

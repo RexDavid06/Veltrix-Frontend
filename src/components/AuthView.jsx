@@ -20,6 +20,24 @@ const COPY = {
 }
 
 export default function AuthView({ mode, onSubmit, error, onNavigate }) {
+  if (mode === 'verify') {
+    return (
+      <>
+        <div className="back-link" data-view="login" onClick={() => onNavigate('login')}>← Back to login</div>
+        <div className="form-card" id="verifyCard">
+          <div className="eyebrow"><span className="eyebrow-line" /> EMAIL VERIFICATION</div>
+          <h2>{error ? 'Verification failed' : 'Verifying your email'}</h2>
+          <p>{error || 'Hang tight while we confirm your email address.'}</p>
+          {error ? (
+            <button className="btn btn-primary" type="button" onClick={() => onNavigate('login')}>Back to sign in</button>
+          ) : (
+            <button className="btn btn-primary" type="button" disabled>Verifying…</button>
+          )}
+        </div>
+      </>
+    )
+  }
+
   if (mode === 'forgot') {
     return (
       <>
@@ -32,8 +50,49 @@ export default function AuthView({ mode, onSubmit, error, onNavigate }) {
             <label htmlFor="forgotEmail">Email address</label>
             <input id="forgotEmail" name="email" type="email" required placeholder="you@example.com" />
           </div>
+          {error && <div className="admin-warn" role="alert">{error}</div>}
           <button className="btn btn-primary" type="submit">Send Reset Link</button>
           <div className="form-note">A secure verification link will be dispatched to your email address to confirm your identity.</div>
+        </form>
+      </>
+    )
+  }
+
+  if (mode === 'reset') {
+    return (
+      <>
+        <div className="back-link" data-view="login" onClick={() => onNavigate('login')}>← Back to login</div>
+        <form className="form-card" id="resetForm" onSubmit={onSubmit}>
+          <div className="eyebrow"><span className="eyebrow-line" /> ACCOUNT RECOVERY</div>
+          <h2>Choose a new password</h2>
+          <p>Set a new password for your account. For security, this link can only be used once.</p>
+          <div className="form-group">
+            <label htmlFor="new_password">New password</label>
+            <input
+              id="new_password"
+              name="new_password"
+              type="password"
+              required
+              minLength={8}
+              placeholder="At least 8 characters"
+              autoComplete="new-password"
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="confirm_password">Confirm new password</label>
+            <input
+              id="confirm_password"
+              name="confirm_password"
+              type="password"
+              required
+              minLength={8}
+              placeholder="Re-enter your new password"
+              autoComplete="new-password"
+            />
+          </div>
+          {error && <div className="admin-warn" role="alert">{error}</div>}
+          <button className="btn btn-primary" type="submit">Update password</button>
+          <div className="form-note">If the link has expired, return to login and request a new reset email.</div>
         </form>
       </>
     )

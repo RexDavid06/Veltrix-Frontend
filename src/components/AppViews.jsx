@@ -14,7 +14,7 @@ function Shell({ view, title, subtitle, admin, onNavigate, children }) {
             <h1>{title}</h1>
             <p>{subtitle}</p>
           </div>
-          <span className="demo-chip">● ACTIVE TRADING</span>
+          <span className="demo-chip">● DEMO MODE</span>
         </div>
         {children}
       </section>
@@ -620,7 +620,13 @@ function Support({ ctx }) {
 
                 <div className="support-thread" style={{ maxHeight: 320, overflowY: 'auto' }}>
                   {(activeConvo.messages || []).map((msg, idx) => {
-                    const isUser = msg.sender === 'user' || msg.sender === profile?.username || msg.is_user
+                    // Backend serializes `sender` as a nested user object; fall
+                    // back to the legacy string form for safety.
+                    const senderId = msg.sender && typeof msg.sender === 'object' ? msg.sender.id : undefined
+                    const senderName = msg.sender && typeof msg.sender === 'object' ? msg.sender.username : msg.sender
+                    const isUser = senderId !== undefined
+                      ? senderId === profile?.id
+                      : (senderName === 'user' || msg.is_user)
                     return (
                       <div className={`chat-bubble ${isUser ? 'agent' : ''}`} key={msg.id || idx}>
                         <span className="chat-meta">{isUser ? 'YOU' : 'VELTRIX SUPPORT'}</span>
