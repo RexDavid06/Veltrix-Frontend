@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 
-const AUTO_REPLY = 'Thank you for contacting VELTRIX Client Services. Your inquiry has been routed to our institutional desk with your verified account credentials. An account specialist will assist you promptly.'
+const AUTO_ACK = 'Message received and added to your support conversation for our client desk to review. This is an automated confirmation — an account specialist will reply in this thread.'
 const TELEGRAM_LINK = import.meta.env.VITE_TELEGRAM_LINK || 'https://t.me/+07074195975'
 
 export default function LiveChat({
@@ -50,24 +50,32 @@ export default function LiveChat({
     ])
     setValue('')
 
+    let delivered = true
     if (onCreateConversation) {
       try {
         const activeConvo = conversations[0]
         if (activeConvo && onSendMessage) {
           await onSendMessage(activeConvo.id, text)
         } else {
-          const clientIdentifier = profile?.email || 'Verified Client'
+          const clientIdentifier = profile?.email || 'Client'
           await onCreateConversation(`Live Chat: ${clientName} (${clientIdentifier})`, text)
         }
       } catch (e) {
         console.error('Failed to post to backend conversations', e)
+        delivered = false
       }
     }
 
     setTimeout(() => {
       setMessages((prev) => [
         ...prev,
-        { label: 'VELTRIX SPECIALIST', text: AUTO_REPLY, user: false },
+        {
+          label: 'VELTRIX (AUTOMATED)',
+          text: delivered
+            ? AUTO_ACK
+            : 'This message could not be delivered. Please try again, or use the Support Portal below.',
+          user: false,
+        },
       ])
     }, 700)
   }

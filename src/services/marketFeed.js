@@ -173,8 +173,12 @@ async function fetchForexRates() {
   }
 }
 
-// Fetch live stock/index chart quote from Yahoo Finance proxy
+// Fetch live stock/index chart quote from the Yahoo Finance proxy.
+// The proxy only exists on the Vite dev server; in a production build this
+// relative path 404s (or returns the SPA shell) against the static frontend
+// host, so skip it and let the caller fall back to sample data.
 async function fetchYahooQuote(symbol) {
+  if (!import.meta.env.DEV) return null
   try {
     const res = await fetch(`/api/live-chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`)
     if (!res.ok) return null
@@ -316,6 +320,8 @@ export async function fetchLiveMarketQuotes() {
       }
     }
 
-    return item
+    // No live source answered for this instrument: keep the sample price but
+    // flag it and drop the invented change so nothing is passed off as live.
+    return { ...item, change: null, changeText: '—', tone: 'neutral', stale: true }
   })
 }
