@@ -125,10 +125,15 @@ export default function App() {
   const navigate = useCallback((next) => {
     setMobileNavOpen(false)
     setAuthError('')
+    // Reading the stored token (rather than state) keeps both directions
+    // working: sign-out clears storage before navigating, and sign-in stores
+    // the token before navigating to the dashboard.
+    const stored = getStoredToken()
+    // The workspace and admin areas are for signed-in users only.
+    const isProtected = APP_VIEWS.includes(next) || ADMIN_VIEWS.includes(next)
     // Authenticated users have no business on the login/registration screens;
-    // send them to their dashboard instead. Reading the stored token (rather
-    // than state) keeps sign-out working, since storage is cleared first.
-    const target = getStoredToken() && AUTH_VIEWS.includes(next) ? 'portal' : next
+    // send them to their dashboard instead.
+    const target = isProtected && !stored ? 'login' : stored && AUTH_VIEWS.includes(next) ? 'portal' : next
     if (AUTH_VIEWS.includes(target)) setAuthMode(target)
     setView(target)
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -687,7 +692,19 @@ export default function App() {
       appContent = <AccessDenied onNavigate={navigate} authenticated={Boolean(token)} />
     }
   } else if (APP_VIEWS.includes(view)) {
-    appContent = <AppViews view={view} ctx={ctx} />
+    appContent = token ? (
+      <AppViews view={view} ctx={ctx} />
+    ) : (
+      // Never render the workspace to an anonymous visitor.
+      <div className="section-wrap">
+        <AuthView
+          mode="login"
+          onSubmit={handleAuth}
+          error={authError || 'Please sign in to access your dashboard.'}
+          onNavigate={navigate}
+        />
+      </div>
+    )
   } else if (token && AUTH_VIEWS.includes(view)) {
     // Never render the login/register forms to an authenticated user.
     appContent = <AppViews view="portal" ctx={ctx} />
