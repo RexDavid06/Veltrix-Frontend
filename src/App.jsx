@@ -23,7 +23,10 @@ const APP_VIEWS = [
   'portal', 'markets', 'portfolio', 'accounts', 'wallet', 'deposits',
   'withdrawals', 'transactions', 'kyc', 'portal-support', 'settings',
 ]
-const ADMIN_VIEWS = ['admin', 'admin-customers', 'admin-kyc', 'admin-transactions', 'admin-support', 'admin-audit']
+const ADMIN_VIEWS = [
+  'admin', 'admin-customers', 'admin-kyc', 'admin-transactions',
+  'admin-instruments', 'admin-support', 'admin-audit',
+]
 
 function readResetCreds() {
   if (typeof window === 'undefined') return null
