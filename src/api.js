@@ -135,6 +135,8 @@ function getStoredToken() {
   }
 }
 
+export { getStoredToken }
+
 function getStoredRefreshToken() {
   try {
     return sessionStorage.getItem('veltrix_refresh') || localStorage.getItem('veltrix_refresh') || null

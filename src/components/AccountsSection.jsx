@@ -24,7 +24,7 @@ const ACCOUNTS = [
   },
 ]
 
-export default function AccountsSection({ onNavigate }) {
+export default function AccountsSection({ onNavigate, token }) {
   return (
     <section className="section-wrap section-pad" id="accounts">
       <div className="center-heading">
@@ -44,10 +44,10 @@ export default function AccountsSection({ onNavigate }) {
             </ul>
             <button
               className={`btn ${account.featured ? 'btn-primary' : 'btn-outline'} full`}
-              data-view="register"
-              onClick={() => onNavigate('register')}
+              data-view={token ? 'portal' : 'register'}
+              onClick={() => onNavigate(token ? 'portal' : 'register')}
             >
-              Open Account <span>↗</span>
+              {token ? 'View Dashboard' : 'Open Account'} <span>↗</span>
             </button>
           </article>
         ))}

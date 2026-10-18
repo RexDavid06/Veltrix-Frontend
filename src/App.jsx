@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import api, { API_ROOT, getWsUrl, revokeStoredSession, setLogoutHandler, WS_ENABLED } from './api'
+import api, { API_ROOT, getStoredToken, getWsUrl, revokeStoredSession, setLogoutHandler, WS_ENABLED } from './api'
 import DemoBanner from './components/DemoBanner'
 import SiteHeader from './components/SiteHeader'
 import Landing from './components/Landing'
@@ -125,8 +125,12 @@ export default function App() {
   const navigate = useCallback((next) => {
     setMobileNavOpen(false)
     setAuthError('')
-    if (AUTH_VIEWS.includes(next)) setAuthMode(next)
-    setView(next)
+    // Authenticated users have no business on the login/registration screens;
+    // send them to their dashboard instead. Reading the stored token (rather
+    // than state) keeps sign-out working, since storage is cleared first.
+    const target = getStoredToken() && AUTH_VIEWS.includes(next) ? 'portal' : next
+    if (AUTH_VIEWS.includes(target)) setAuthMode(target)
+    setView(target)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [])
 
@@ -684,6 +688,9 @@ export default function App() {
     }
   } else if (APP_VIEWS.includes(view)) {
     appContent = <AppViews view={view} ctx={ctx} />
+  } else if (token && AUTH_VIEWS.includes(view)) {
+    // Never render the login/register forms to an authenticated user.
+    appContent = <AppViews view="portal" ctx={ctx} />
   } else {
     appContent = (
       <div className="section-wrap">
@@ -697,7 +704,7 @@ export default function App() {
     )
   }
 
-  const cashBalance = dashboard?.account?.cash_balance || 10000.0
+  const cashBalance = dashboard?.account?.cash_balance || 0.0
 
   return (
     <>
@@ -709,6 +716,7 @@ export default function App() {
         onToggleNav={() => setMobileNavOpen((open) => !open)}
         onCloseNav={() => setMobileNavOpen(false)}
         onNavigate={navigate}
+        authenticated={Boolean(token)}
       />
       <main id="publicSite" className={isHome ? '' : 'hidden'}>
         <Landing onNavigate={navigate} quotes={liveQuotes} token={token} />

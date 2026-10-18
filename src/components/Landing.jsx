@@ -10,11 +10,11 @@ import SupportCTA from './SupportCTA'
 export default function Landing({ onNavigate, quotes = [], token }) {
   return (
     <>
-      <Hero onNavigate={onNavigate} />
+      <Hero onNavigate={onNavigate} token={token} />
       <TickerStrip quotes={quotes} />
       <MarketsSection onNavigate={onNavigate} quotes={quotes} />
       <FeatureBand onNavigate={onNavigate} />
-      <AccountsSection onNavigate={onNavigate} />
+      <AccountsSection onNavigate={onNavigate} token={token} />
       <EducationSection />
       <SupportCTA onNavigate={onNavigate} token={token} />
     </>

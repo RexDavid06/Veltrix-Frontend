@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import AppSidebar from './AppSidebar'
 import DataTable from './DataTable'
 import { MarketTable, MarketRowsTable } from './MarketTable'
-import { DEMO_TRANSACTIONS, formatCurrency, formatPrice } from '../data'
+import { formatCurrency, formatPrice } from '../data'
 
 function Shell({ view, title, subtitle, admin, onNavigate, onLogout, children }) {
   return (
@@ -52,13 +52,6 @@ function MiniChart() {
   )
 }
 
-function statusCell(value) {
-  if (value === 'pending') return <span className="status pending">Pending</span>
-  if (value === 'review') return <span className="status review">Processing</span>
-  if (value === 'completed') return <span className="status">Completed</span>
-  return value
-}
-
 function Overview({ ctx }) {
   const {
     marketRows,
@@ -74,11 +67,11 @@ function Overview({ ctx }) {
   const topRows = marketRows.slice(0, 4)
   const cash = dashboard?.account?.cash_balance !== undefined
     ? Number(dashboard.account.cash_balance)
-    : 10000.0
+    : 0.0
 
   const positions = dashboard?.positions || []
   const positionsValue = positions.reduce((sum, p) => sum + Number(p.market_value || 0), 0)
-  const totalValue = dashboard ? cash + positionsValue : 24680.5
+  const totalValue = dashboard ? cash + positionsValue : 0.0
 
   return (
     <>
@@ -91,7 +84,7 @@ function Overview({ ctx }) {
           <span className="stat-label">TOTAL PORTFOLIO VALUE</span>
           <div className="stat-value">{formatCurrency(totalValue)}</div>
           <span className="stat-change">
-            {positions.length > 0 ? `${positions.length} active positions` : '+4.28% 24h PnL'}
+            {positions.length > 0 ? `${positions.length} active positions` : 'No open positions'}
           </span>
         </div>
 
@@ -112,7 +105,7 @@ function Overview({ ctx }) {
 
         <div className="app-card">
           <span className="stat-label">WATCHLIST</span>
-          <div className="stat-value">{String(watchlist.length || 8).padStart(2, '0')}</div>
+          <div className="stat-value">{String(watchlist.length).padStart(2, '0')}</div>
           <span className="muted-copy">Monitored instruments</span>
         </div>
       </div>
@@ -179,11 +172,11 @@ function Portfolio({ ctx }) {
   const { dashboard, onNavigate, onOpenTrade, onOpenTopUp } = ctx
   const cash = dashboard?.account?.cash_balance !== undefined
     ? Number(dashboard.account.cash_balance)
-    : 10000.0
+    : 0.0
   const positions = dashboard?.positions || []
   const hasPositions = positions.length > 0
   const positionsTotal = positions.reduce((sum, p) => sum + Number(p.market_value || 0), 0)
-  const total = dashboard ? cash + positionsTotal : 24680.5
+  const total = dashboard ? cash + positionsTotal : 0.0
 
   return (
     <>
@@ -272,7 +265,7 @@ function Accounts({ ctx }) {
   const { dashboard, profile, onOpenTopUp } = ctx
   const cash = dashboard?.account?.cash_balance !== undefined
     ? Number(dashboard.account.cash_balance)
-    : 10000.0
+    : 0.0
 
   return (
     <>
@@ -310,7 +303,7 @@ function Money({ view, ctx }) {
   const titles = { wallet: 'Wallet & Settlement', deposits: 'Deposit Funds', withdrawals: 'Withdrawal Portal' }
   const cash = dashboard?.account?.cash_balance !== undefined
     ? Number(dashboard.account.cash_balance)
-    : 8240.0
+    : 0.0
 
   return (
     <>
@@ -325,7 +318,7 @@ function Money({ view, ctx }) {
         </div>
         <div className="app-card">
           <span className="stat-label">TRANSACTIONS RECORDED</span>
-          <div className="stat-value">{dashboard?.transactions?.length || '04'}</div>
+          <div className="stat-value">{dashboard?.transactions?.length ?? 0}</div>
           <span className="muted-copy">Audited ledger entries</span>
         </div>
       </div>
@@ -352,15 +345,13 @@ function Money({ view, ctx }) {
 function Transactions({ ctx }) {
   const { dashboard } = ctx
   const rawTx = dashboard?.transactions || []
-  const rows = rawTx.length
-    ? rawTx.map((tx) => [
-        <b key={`side-${tx.id}`} style={{ textTransform: 'uppercase', color: tx.side === 'buy' ? 'var(--green)' : 'var(--gold)' }}>{tx.side}</b>,
-        tx.symbol || 'USD Deposit',
-        new Date(tx.created_at || Date.now()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-        formatCurrency(tx.amount),
-        <span className="status" key={`st-${tx.id}`}>{tx.status}</span>,
-      ])
-    : DEMO_TRANSACTIONS.map((t) => [t[0], t[1], t[2], t[3], statusCell(t[4])])
+  const rows = rawTx.map((tx) => [
+    <b key={`side-${tx.id}`} style={{ textTransform: 'uppercase', color: tx.side === 'buy' ? 'var(--green)' : 'var(--gold)' }}>{tx.side}</b>,
+    tx.symbol || 'USD Deposit',
+    new Date(tx.created_at || Date.now()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+    formatCurrency(tx.amount),
+    <span className="status" key={`st-${tx.id}`}>{tx.status}</span>,
+  ])
 
   return (
     <>
@@ -368,7 +359,14 @@ function Transactions({ ctx }) {
         Official trade confirmations and ledger records. Each transaction is settled atomically and immutably recorded.
       </div>
       <div className="app-card">
-        <DataTable headings={['TRANSACTION', 'INSTRUMENT / REFERENCE', 'DATE', 'AMOUNT', 'STATUS']} rows={rows} />
+        {rows.length ? (
+          <DataTable headings={['TRANSACTION', 'INSTRUMENT / REFERENCE', 'DATE', 'AMOUNT', 'STATUS']} rows={rows} />
+        ) : (
+          <div className="empty-state">
+            <div className="empty-icon">◈</div>
+            <p>No transactions yet. Your ledger will populate once you deposit funds or execute a trade.</p>
+          </div>
+        )}
         <div className="mobile-note">Swipe horizontally to view all columns.</div>
       </div>
     </>
@@ -399,13 +397,26 @@ function Kyc({ ctx }) {
         >
           <div className="form-group">
             <label>Country of residence</label>
-            <select required defaultValue="Nigeria">
+            <select required defaultValue="">
               <option value="">Choose a country</option>
-              <option>Nigeria</option>
-              <option>United Kingdom</option>
-              <option>United States</option>
+              <option>Austria</option>
+              <option>Belgium</option>
+              <option>Czech Republic</option>
+              <option>Denmark</option>
+              <option>Finland</option>
+              <option>France</option>
               <option>Germany</option>
-              <option>Other</option>
+              <option>Greece</option>
+              <option>Ireland</option>
+              <option>Italy</option>
+              <option>Netherlands</option>
+              <option>Norway</option>
+              <option>Poland</option>
+              <option>Portugal</option>
+              <option>Spain</option>
+              <option>Sweden</option>
+              <option>Switzerland</option>
+              <option>United Kingdom</option>
             </select>
           </div>
           <div className="form-group">

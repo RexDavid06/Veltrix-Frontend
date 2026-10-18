@@ -1,6 +1,6 @@
 import React from 'react'
 
-export default function SiteHeader({ mobileOpen, onToggleNav, onCloseNav, onNavigate }) {
+export default function SiteHeader({ mobileOpen, onToggleNav, onCloseNav, onNavigate, authenticated }) {
   return (
     <header className="site-header">
       <a
@@ -32,10 +32,18 @@ export default function SiteHeader({ mobileOpen, onToggleNav, onCloseNav, onNavi
         <a href="#support" onClick={onCloseNav}>Support</a>
       </nav>
       <div className="header-actions">
-        <button className="btn btn-quiet" data-view="login" onClick={() => onNavigate('login')}>Log in</button>
-        <button className="btn btn-primary" data-view="register" onClick={() => onNavigate('register')}>
-          Open an account <span>↗</span>
-        </button>
+        {authenticated ? (
+          <button className="btn btn-primary" data-view="portal" onClick={() => onNavigate('portal')}>
+            Dashboard <span>↗</span>
+          </button>
+        ) : (
+          <>
+            <button className="btn btn-quiet" data-view="login" onClick={() => onNavigate('login')}>Log in</button>
+            <button className="btn btn-primary" data-view="register" onClick={() => onNavigate('register')}>
+              Open an account <span>↗</span>
+            </button>
+          </>
+        )}
       </div>
     </header>
   )

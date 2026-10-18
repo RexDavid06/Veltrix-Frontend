@@ -1,6 +1,6 @@
 import React from 'react'
 
-export default function Hero({ onNavigate }) {
+export default function Hero({ onNavigate, token }) {
   return (
     <section className="hero section-wrap" id="home">
       <div className="hero-copy">
@@ -8,9 +8,15 @@ export default function Hero({ onNavigate }) {
         <h1>Your next move<br />starts <span>here.</span></h1>
         <p className="hero-lede">Explore global markets with a trading experience designed around clarity, control, and confidence.</p>
         <div className="hero-actions">
-          <button className="btn btn-primary btn-large" data-view="register" onClick={() => onNavigate('register')}>
-            Open an account <span>↗</span>
-          </button>
+          {token ? (
+            <button className="btn btn-primary btn-large" data-view="portal" onClick={() => onNavigate('portal')}>
+              Go to dashboard <span>↗</span>
+            </button>
+          ) : (
+            <button className="btn btn-primary btn-large" data-view="register" onClick={() => onNavigate('register')}>
+              Open an account <span>↗</span>
+            </button>
+          )}
           <a className="btn btn-outline btn-large" href="#markets">Explore the markets <span>↓</span></a>
         </div>
         <div className="hero-proof">

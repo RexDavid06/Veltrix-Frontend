@@ -1,7 +1,6 @@
 import React, { useState } from 'react'
 import AppSidebar from './AppSidebar'
 import DataTable from './DataTable'
-import { DEMO_TRANSACTIONS } from '../data'
 
 function AdminShell({ view, title, subtitle, onNavigate, onLogout, children }) {
   return (
@@ -37,25 +36,15 @@ export default function AdminViews({ view, ctx = {}, onNavigate, showToast = () 
   const [adminReply, setAdminReply] = useState('')
   const [replyLoading, setReplyLoading] = useState(false)
 
-  // Real or fallback transactions
+  // Real transactions only — new accounts show an empty ledger, not demo rows
   const rawTx = dashboard?.transactions || []
-  const transactions = rawTx.length
-    ? rawTx.map((tx) => [
-        <b key={`side-${tx.id}`} style={{ textTransform: 'uppercase', color: tx.side === 'buy' ? 'var(--green)' : 'var(--gold)' }}>{tx.side}</b>,
-        tx.symbol || 'USD Deposit',
-        new Date(tx.created_at || Date.now()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-        `$${Number(tx.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
-        <span className="status" key={`st-${tx.id}`}>{tx.status}</span>,
-      ])
-    : DEMO_TRANSACTIONS.map((t) => [
-        t[0],
-        t[1],
-        t[2],
-        t[3],
-        <span className={`status ${t[4]}`} key={t[0] + t[2]}>
-          {t[4] === 'pending' ? 'Pending' : 'Settled'}
-        </span>,
-      ])
+  const transactions = rawTx.map((tx) => [
+    <b key={`side-${tx.id}`} style={{ textTransform: 'uppercase', color: tx.side === 'buy' ? 'var(--green)' : 'var(--gold)' }}>{tx.side}</b>,
+    tx.symbol || 'USD Deposit',
+    new Date(tx.created_at || Date.now()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+    `$${Number(tx.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+    <span className="status" key={`st-${tx.id}`}>{tx.status}</span>,
+  ])
 
   // Count active support items
   const activeConversations = conversations.filter((c) => c.is_active)
@@ -209,10 +198,17 @@ export default function AdminViews({ view, ctx = {}, onNavigate, showToast = () 
           Automated transaction monitoring active. Flagged transactions are placed in temporary compliance hold.
         </div>
         <div className="app-card">
-          <DataTable
-            headings={['TRANSACTION TYPE', 'ACCOUNT / INSTRUMENT', 'EXECUTION DATE', 'VALUE', 'SETTLEMENT']}
-            rows={transactions}
-          />
+          {transactions.length ? (
+            <DataTable
+              headings={['TRANSACTION TYPE', 'ACCOUNT / INSTRUMENT', 'EXECUTION DATE', 'VALUE', 'SETTLEMENT']}
+              rows={transactions}
+            />
+          ) : (
+            <div className="empty-state">
+              <div className="empty-icon">◈</div>
+              <p>No transactions recorded yet.</p>
+            </div>
+          )}
         </div>
       </AdminShell>
     )

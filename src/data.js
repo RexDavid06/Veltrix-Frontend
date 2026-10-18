@@ -6,13 +6,6 @@ export const DEFAULT_MARKET_ROWS = [
   ['GBP/USD', 'British Pound / US Dollar', '1.2716', '+0.08%', 'positive', '£'],
 ]
 
-export const DEMO_TRANSACTIONS = [
-  ['Deposit settled', 'Wire Transfer #8492', '2026-10-07', '$10,000.00', 'completed'],
-  ['Market Buy', 'BTC-USD', '2026-10-05', '$2,500.00', 'completed'],
-  ['Market Buy', 'AAPL', '2026-10-02', '$1,120.00', 'completed'],
-  ['Position Settlement', 'Portfolio PnL', '2026-09-29', '$375.00', 'completed'],
-]
-
 export const NAV_ITEMS = [
   ['Overview', 'portal', '⌂', 'WORKSPACE'],
   ['Markets', 'markets', '◫', 'WORKSPACE'],
