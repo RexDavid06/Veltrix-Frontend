@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import AppSidebar from './AppSidebar'
 import DataTable from './DataTable'
+import ProfileView from './ProfileView'
 import { formatCurrency } from '../data'
 import {
   extractAdminError,
@@ -8,6 +9,7 @@ import {
   fetchAdminInstruments,
   fetchAdminStats,
   fetchAdminTransactions,
+  fetchAdminUser,
   fetchAdminUsers,
   updateAdminInstrument,
   updateAdminUser,
@@ -18,11 +20,12 @@ const PAGE_SIZE = 20
 
 function AdminShell({ view, title, subtitle, onNavigate, onLogout, children }) {
   return (
-    <div className="app-shell">
+    <div className="app-shell admin-shell">
       <AppSidebar active={view} admin onNavigate={onNavigate} onLogout={onLogout} />
       <section className="app-main">
-        <div className="app-topline">
+        <div className="app-topline admin-topline">
           <div>
+            <span className="admin-eyebrow">VELTRIX ADMINISTRATION</span>
             <h1>{title}</h1>
             <p>{subtitle}</p>
           </div>
@@ -325,6 +328,113 @@ function AdminOverview({ onNavigate, ctx }) {
   )
 }
 
+// Read-only client dossier. Everything here comes from
+// GET /api/admin/users/<id>/ in a single request (the backend has no
+// separate positions/transactions-per-user admin routes, so they are read
+// from the dossier payload rather than invented endpoints).
+function AdminUserDetail({ record, loading, error, onRetry, onClose }) {
+  if (loading) {
+    return (
+      <div className="app-card detail-panel">
+        <div className="muted-copy" style={{ padding: '16px 0' }}>Loading client dossier from the backend…</div>
+      </div>
+    )
+  }
+  if (error) {
+    return (
+      <div className="app-card detail-panel">
+        <div className="error-banner">
+          <span>{error}</span>
+          <button className="btn btn-outline" style={{ padding: '4px 10px', fontSize: 10 }} onClick={onRetry}>
+            Retry ↻
+          </button>
+        </div>
+        <button className="btn btn-quiet" type="button" onClick={onClose}>Close</button>
+      </div>
+    )
+  }
+  if (!record) return null
+
+  const name = `${record.first_name || ''} ${record.last_name || ''}`.trim() || record.username
+  const positions = Array.isArray(record.positions) ? record.positions : []
+  const transactions = Array.isArray(record.recent_transactions) ? record.recent_transactions : []
+
+  return (
+    <div className="app-card detail-panel" aria-live="polite">
+      <div className="section-row">
+        <div>
+          <h3>
+            {name}{' '}
+            <span className="muted-copy" style={{ fontFamily: 'monospace' }}>
+              VX-{String(record.id).padStart(3, '0')}
+            </span>
+          </h3>
+          <div className="muted-copy">{record.email}</div>
+        </div>
+        <button className="btn btn-outline" type="button" onClick={onClose} aria-label="Close client details">
+          Close ✕
+        </button>
+      </div>
+
+      <div className="detail-facts">
+        <div><span>ROLE</span><b>{record.role}</b></div>
+        <div><span>KYC</span><b>{record.is_verified ? 'Verified' : 'Pending'}</b></div>
+        <div><span>ACCOUNT</span><b>{record.is_active ? 'Active' : 'Suspended'}</b></div>
+        <div><span>CASH BALANCE</span><b>{formatCurrency(Number(record.cash_balance ?? 0))}</b></div>
+        <div><span>TRANSACTIONS</span><b>{Number(record.transaction_count ?? 0).toLocaleString('en-US')}</b></div>
+        <div><span>JOINED</span><b>{formatDate(record.date_joined)}</b></div>
+        <div><span>LAST LOGIN</span><b>{formatDateTime(record.last_login)}</b></div>
+        <div><span>STAFF</span><b>{record.is_staff ? 'Yes' : 'No'}</b></div>
+      </div>
+
+      <h4 style={{ marginTop: 16 }}>Open positions ({positions.length})</h4>
+      {positions.length ? (
+        <DataTable
+          headings={['SYMBOL', 'INSTRUMENT', 'QUANTITY', 'AVG PRICE', 'MARKET VALUE']}
+          rows={positions.map((position, index) => [
+            <b key={`ps-${index}`}>{position.symbol}</b>,
+            position.name || '—',
+            Number(position.quantity ?? 0).toLocaleString('en-US', { maximumFractionDigits: 4 }),
+            formatCurrency(Number(position.avg_price ?? 0)),
+            formatCurrency(Number(position.market_value ?? 0)),
+          ])}
+        />
+      ) : (
+        <div className="muted-copy">No open positions on this account.</div>
+      )}
+
+      <h4 style={{ marginTop: 16 }}>Recent transactions ({transactions.length})</h4>
+      {transactions.length ? (
+        <DataTable
+          headings={['SIDE', 'SYMBOL', 'QTY', 'AMOUNT', 'STATUS', 'DATE']}
+          rows={transactions.map((tx) => [
+            <b
+              key={`ts-${tx.id}`}
+              style={{ textTransform: 'uppercase', color: tx.side === 'sell' ? 'var(--gold)' : 'var(--mint)' }}
+            >
+              {tx.side}
+            </b>,
+            tx.symbol || 'USD Deposit',
+            Number(tx.quantity ?? 0).toLocaleString('en-US', { maximumFractionDigits: 4 }),
+            formatCurrency(Number(tx.amount ?? 0)),
+            <span className={`status${tx.status === 'pending' ? ' pending' : ''}`} key={`tst-${tx.id}`}>
+              {tx.status}
+            </span>,
+            formatDate(tx.created_at),
+          ])}
+        />
+      ) : (
+        <div className="muted-copy">No transactions recorded for this account.</div>
+      )}
+
+      <p className="form-note">
+        Inspection only. Account-state changes are performed from the directory actions and are written to
+        the audit trail.
+      </p>
+    </div>
+  )
+}
+
 function CustomersView({ showToast }) {
   const [searchInput, setSearchInput] = useState('')
   const search = useDebounced(searchInput)
@@ -332,10 +442,34 @@ function CustomersView({ showToast }) {
   const [activeFilter, setActiveFilter] = useState('')
   const [page, setPage] = useState(1)
   const [busyId, setBusyId] = useState(null)
+  const [detailId, setDetailId] = useState(null)
+  const [detail, setDetail] = useState(null)
+  const [detailLoading, setDetailLoading] = useState(false)
+  const [detailError, setDetailError] = useState('')
 
   const { items, count, loading, error, reload } = useAdminList(fetchAdminUsers, {
     search, role, is_active: activeFilter, page, page_size: PAGE_SIZE,
   })
+
+  const openDetail = useCallback(async (userId) => {
+    setDetailId(userId)
+    setDetail(null)
+    setDetailError('')
+    setDetailLoading(true)
+    try {
+      setDetail(await fetchAdminUser(userId))
+    } catch (err) {
+      setDetailError(extractAdminError(err, 'Could not load this client record from the backend.'))
+    } finally {
+      setDetailLoading(false)
+    }
+  }, [])
+
+  const closeDetail = () => {
+    setDetailId(null)
+    setDetail(null)
+    setDetailError('')
+  }
 
   const toggleFlag = async (user, field) => {
     setBusyId(user.id)
@@ -347,6 +481,8 @@ function CustomersView({ showToast }) {
         showToast(user.is_active ? `${user.email} suspended` : `${user.email} reactivated`)
       }
       reload()
+      // Keep an open dossier in step with the flag that was just changed.
+      if (detailId === user.id) openDetail(user.id)
     } catch (err) {
       showToast(extractAdminError(err, 'Account update was rejected by the backend.'))
     } finally {
@@ -377,57 +513,76 @@ function CustomersView({ showToast }) {
   )
 
   return (
-    <ListPanel
-      toolbar={toolbar}
-      loading={loading}
-      error={error}
-      onRetry={reload}
-      items={items}
-      headings={['CLIENT ID', 'ACCOUNT HOLDER', 'OFFICIAL EMAIL', 'ROLE', 'KYC', 'BALANCE', 'TX', 'ACTIONS']}
-      renderRow={(user) => [
-        <b key={`id-${user.id}`} style={{ fontFamily: 'monospace', color: 'var(--gold)' }}>
-          VX-{String(user.id).padStart(3, '0')}
-        </b>,
-        <span key={`name-${user.id}`}>
-          {user.first_name || user.last_name
-            ? `${user.first_name || ''} ${user.last_name || ''}`.trim()
-            : user.username}
-          {user.is_active ? '' : <span className="status review" style={{ marginLeft: 6 }}>Suspended</span>}
-        </span>,
-        <span key={`email-${user.id}`}>{user.email}</span>,
-        <span className="status" key={`role-${user.id}`}>{user.role}</span>,
-        <span className={user.is_verified ? 'status' : 'status pending'} key={`kyc-${user.id}`}>
-          {user.is_verified ? 'Verified' : 'Pending'}
-        </span>,
-        formatCurrency(Number(user.cash_balance ?? 0)),
-        Number(user.transaction_count ?? 0).toLocaleString('en-US'),
-        <span key={`act-${user.id}`} style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap' }}>
-          <button
-            className="btn btn-outline"
-            style={{
-              padding: '4px 8px', fontSize: 10,
-              borderColor: user.is_verified ? 'var(--line)' : 'var(--green)',
-              color: user.is_verified ? '#9eafa4' : 'var(--green)',
-            }}
-            disabled={busyId === user.id}
-            onClick={() => toggleFlag(user, 'is_verified')}
-          >
-            {user.is_verified ? 'Revoke KYC' : 'Approve KYC'}
-          </button>
-          <button
-            className="btn btn-outline"
-            style={{ padding: '4px 8px', fontSize: 10, borderColor: 'var(--red)', color: 'var(--red)' }}
-            disabled={busyId === user.id}
-            onClick={() => toggleFlag(user, 'is_active')}
-          >
-            {user.is_active ? 'Suspend' : 'Reactivate'}
-          </button>
-        </span>,
-      ]}
-      emptyTitle={search || role || activeFilter ? 'No client accounts match these filters.' : 'No client accounts registered yet.'}
-      emptyHint="New registrations appear here as soon as they are created on the backend."
-      footer={<Pager page={page} count={count} onPage={setPage} />}
-    />
+    <>
+      {detailId && (
+        <AdminUserDetail
+          record={detail}
+          loading={detailLoading}
+          error={detailError}
+          onRetry={() => openDetail(detailId)}
+          onClose={closeDetail}
+        />
+      )}
+      <ListPanel
+        toolbar={toolbar}
+        loading={loading}
+        error={error}
+        onRetry={reload}
+        items={items}
+        headings={['CLIENT ID', 'ACCOUNT HOLDER', 'OFFICIAL EMAIL', 'ROLE', 'KYC', 'BALANCE', 'TX', 'ACTIONS']}
+        renderRow={(user) => [
+          <b key={`id-${user.id}`} style={{ fontFamily: 'monospace', color: 'var(--gold)' }}>
+            VX-{String(user.id).padStart(3, '0')}
+          </b>,
+          <span key={`name-${user.id}`}>
+            {user.first_name || user.last_name
+              ? `${user.first_name || ''} ${user.last_name || ''}`.trim()
+              : user.username}
+            {user.is_active ? '' : <span className="status review" style={{ marginLeft: 6 }}>Suspended</span>}
+          </span>,
+          <span key={`email-${user.id}`}>{user.email}</span>,
+          <span className="status" key={`role-${user.id}`}>{user.role}</span>,
+          <span className={user.is_verified ? 'status' : 'status pending'} key={`kyc-${user.id}`}>
+            {user.is_verified ? 'Verified' : 'Pending'}
+          </span>,
+          formatCurrency(Number(user.cash_balance ?? 0)),
+          Number(user.transaction_count ?? 0).toLocaleString('en-US'),
+          <span key={`act-${user.id}`} style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap' }}>
+            <button
+              className="btn btn-outline"
+              style={{ padding: '4px 8px', fontSize: 10 }}
+              aria-expanded={detailId === user.id}
+              onClick={() => (detailId === user.id ? closeDetail() : openDetail(user.id))}
+            >
+              {detailId === user.id ? 'Hide details' : 'Details'}
+            </button>
+            <button
+              className="btn btn-outline"
+              style={{
+                padding: '4px 8px', fontSize: 10,
+                borderColor: user.is_verified ? 'var(--line)' : 'var(--mint)',
+                color: user.is_verified ? '#9eafa4' : 'var(--mint)',
+              }}
+              disabled={busyId === user.id}
+              onClick={() => toggleFlag(user, 'is_verified')}
+            >
+              {user.is_verified ? 'Revoke KYC' : 'Approve KYC'}
+            </button>
+            <button
+              className="btn btn-outline"
+              style={{ padding: '4px 8px', fontSize: 10, borderColor: 'var(--red)', color: 'var(--red)' }}
+              disabled={busyId === user.id}
+              onClick={() => toggleFlag(user, 'is_active')}
+            >
+              {user.is_active ? 'Suspend' : 'Reactivate'}
+            </button>
+          </span>,
+        ]}
+        emptyTitle={search || role || activeFilter ? 'No client accounts match these filters.' : 'No client accounts registered yet.'}
+        emptyHint="New registrations appear here as soon as they are created on the backend."
+        footer={<Pager page={page} count={count} onPage={setPage} />}
+      />
+    </>
   )
 }
 
@@ -510,10 +665,13 @@ function TransactionsView() {
   const [side, setSide] = useState('')
   const [status, setStatus] = useState('')
   const [page, setPage] = useState(1)
+  const [inspectedId, setInspectedId] = useState(null)
 
   const { items, count, loading, error, reload } = useAdminList(fetchAdminTransactions, {
     search, side, status, page, page_size: PAGE_SIZE,
   })
+
+  const inspected = inspectedId ? items.find((tx) => tx.id === inspectedId) : null
 
   const toolbar = (
     <div className="list-toolbar">
@@ -540,42 +698,88 @@ function TransactionsView() {
   )
 
   return (
-    <ListPanel
-      toolbar={toolbar}
-      loading={loading}
-      error={error}
-      onRetry={reload}
-      items={items}
-      headings={['SIDE', 'CLIENT', 'INSTRUMENT', 'QTY', 'AMOUNT', 'SETTLEMENT', 'DATE']}
-      renderRow={(tx) => [
-        <b
-          key={`side-${tx.id}`}
-          style={{
-            textTransform: 'uppercase',
-            color: tx.side === 'sell' ? 'var(--gold)' : 'var(--green)',
-          }}
-        >
-          {tx.side}
-        </b>,
-        <span key={`user-${tx.id}`} style={{ display: 'grid' }}>
-          <span>{tx.user_name}</span>
-          <small style={{ color: '#74887b', fontSize: 9 }}>{tx.user_email}</small>
-        </span>,
-        <b key={`sym-${tx.id}`}>{tx.symbol || 'USD Deposit'}</b>,
-        Number(tx.quantity || 0).toLocaleString('en-US', { maximumFractionDigits: 4 }),
-        formatCurrency(Number(tx.amount ?? 0)),
-        <span
-          className={`status${tx.status === 'pending' ? ' pending' : tx.status === 'simulated' ? ' review' : ''}`}
-          key={`st-${tx.id}`}
-        >
-          {tx.status}
-        </span>,
-        formatDate(tx.created_at),
-      ]}
-      emptyTitle={search || side || status ? 'No transactions match these filters.' : 'No transactions recorded yet.'}
-      emptyHint="Trades and deposits written by the backend appear here in real time."
-      footer={<Pager page={page} count={count} onPage={setPage} />}
-    />
+    <>
+      {inspected && (
+        <div className="app-card detail-panel" aria-live="polite">
+          <div className="section-row">
+            <div>
+              <h3>
+                Transaction #{inspected.id}{' '}
+                <span className="status" style={{ textTransform: 'uppercase' }}>{inspected.side}</span>
+              </h3>
+              <div className="muted-copy">
+                {inspected.user_name} · {inspected.user_email}
+              </div>
+            </div>
+            <button className="btn btn-outline" type="button" onClick={() => setInspectedId(null)}>
+              Close ✕
+            </button>
+          </div>
+          <div className="detail-facts">
+            <div><span>INSTRUMENT</span><b>{inspected.symbol || 'USD Deposit'}</b></div>
+            <div><span>QUANTITY</span><b>{Number(inspected.quantity ?? 0).toLocaleString('en-US', { maximumFractionDigits: 4 })}</b></div>
+            <div><span>EXECUTION PRICE</span><b>{formatCurrency(Number(inspected.execution_price ?? 0))}</b></div>
+            <div><span>AMOUNT</span><b>{formatCurrency(Number(inspected.amount ?? 0))}</b></div>
+            <div><span>SETTLEMENT</span><b style={{ textTransform: 'capitalize' }}>{inspected.status}</b></div>
+            <div><span>CLIENT ID</span><b style={{ fontFamily: 'monospace' }}>VX-{String(inspected.user_id).padStart(3, '0')}</b></div>
+            <div><span>EXECUTED</span><b>{formatDateTime(inspected.created_at)}</b></div>
+            <div><span>REFERENCE</span><b style={{ fontFamily: 'monospace' }}>TX-{String(inspected.id).padStart(5, '0')}</b></div>
+          </div>
+          {inspected.note && (
+            <p className="muted-copy" style={{ marginTop: 10, whiteSpace: 'pre-wrap' }}>{inspected.note}</p>
+          )}
+          <p className="form-note">
+            Read-only inspection of the record returned by the monitoring list. Balances are adjusted by the
+            trading and funding services — no balance, deposit or withdrawal change can be made from this view.
+          </p>
+        </div>
+      )}
+      <ListPanel
+        toolbar={toolbar}
+        loading={loading}
+        error={error}
+        onRetry={reload}
+        items={items}
+        headings={['SIDE', 'CLIENT', 'INSTRUMENT', 'QTY', 'AMOUNT', 'SETTLEMENT', 'DATE', 'ACTION']}
+        renderRow={(tx) => [
+          <b
+            key={`side-${tx.id}`}
+            style={{
+              textTransform: 'uppercase',
+              color: tx.side === 'sell' ? 'var(--gold)' : 'var(--mint)',
+            }}
+          >
+            {tx.side}
+          </b>,
+          <span key={`user-${tx.id}`} style={{ display: 'grid' }}>
+            <span>{tx.user_name}</span>
+            <small style={{ color: '#74887b', fontSize: 9 }}>{tx.user_email}</small>
+          </span>,
+          <b key={`sym-${tx.id}`}>{tx.symbol || 'USD Deposit'}</b>,
+          Number(tx.quantity || 0).toLocaleString('en-US', { maximumFractionDigits: 4 }),
+          formatCurrency(Number(tx.amount ?? 0)),
+          <span
+            className={`status${tx.status === 'pending' ? ' pending' : tx.status === 'simulated' ? ' review' : ''}`}
+            key={`st-${tx.id}`}
+          >
+            {tx.status}
+          </span>,
+          formatDate(tx.created_at),
+          <button
+            key={`inspect-${tx.id}`}
+            className="btn btn-outline"
+            style={{ padding: '4px 8px', fontSize: 10 }}
+            aria-expanded={inspectedId === tx.id}
+            onClick={() => setInspectedId(inspectedId === tx.id ? null : tx.id)}
+          >
+            {inspectedId === tx.id ? 'Hide' : 'Inspect'}
+          </button>,
+        ]}
+        emptyTitle={search || side || status ? 'No transactions match these filters.' : 'No transactions recorded yet.'}
+        emptyHint="Trades and deposits written by the backend appear here in real time."
+        footer={<Pager page={page} count={count} onPage={setPage} />}
+      />
+    </>
   )
 }
 
@@ -1116,6 +1320,24 @@ export default function AdminViews({ view, ctx = {}, onNavigate, showToast = () 
           Tamper-evident audit trail recording all staff operations and account modifications.
         </div>
         <AuditView />
+      </AdminShell>
+    )
+  }
+
+  if (view === 'admin-profile') {
+    return (
+      <AdminShell
+        view={view}
+        title="Administrator Profile"
+        subtitle="Your own account record, served by the self-service profile endpoint."
+        onNavigate={onNavigate}
+        onLogout={ctx.onLogout}
+      >
+        <div className="admin-warn">
+          This is your own account. Editing it uses the same authenticated /api/profile/ endpoint as
+          client accounts; role and permissions are managed server-side.
+        </div>
+        <ProfileView ctx={ctx} />
       </AdminShell>
     )
   }

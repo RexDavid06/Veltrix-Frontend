@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import api, { API_ROOT, getStoredToken, getWsUrl, revokeStoredSession, setLogoutHandler, WS_ENABLED } from './api'
 import DemoBanner from './components/DemoBanner'
 import SiteHeader from './components/SiteHeader'
@@ -13,20 +13,20 @@ import TradeModal from './components/TradeModal'
 import TopUpModal from './components/TopUpModal'
 import { badgeFor, formatPrice } from './data'
 import {
+  APP_VIEWS,
+  AUTH_VIEWS,
+  homeFor,
+  isAdminView,
+  isProtectedView,
+  pathFor,
+  resolveAdminAccess,
+  viewForPath,
+} from './routing'
+import {
   DEFAULT_LIVE_MARKETS,
   fetchLiveMarketQuotes,
   quoteToRow,
 } from './services/marketFeed'
-
-const AUTH_VIEWS = ['login', 'register', 'forgot', 'reset', 'verify']
-const APP_VIEWS = [
-  'portal', 'markets', 'portfolio', 'accounts', 'wallet', 'deposits',
-  'withdrawals', 'transactions', 'kyc', 'portal-support', 'settings',
-]
-const ADMIN_VIEWS = [
-  'admin', 'admin-customers', 'admin-kyc', 'admin-transactions',
-  'admin-instruments', 'admin-support', 'admin-audit',
-]
 
 function readResetCreds() {
   if (typeof window === 'undefined') return null
@@ -39,6 +39,15 @@ function readResetCreds() {
 function readVerifyToken() {
   if (typeof window === 'undefined') return null
   return new URLSearchParams(window.location.search).get('verify_token')
+}
+
+// The SPA keeps its views in the URL so a reload (or a shared link) restores
+// the same screen — including /admin for administrators.
+function readInitialView(resetCreds, verifyToken) {
+  if (resetCreds) return 'reset'
+  if (verifyToken) return 'verify'
+  if (typeof window === 'undefined' || !window.location) return 'home'
+  return viewForPath(window.location.pathname)
 }
 
 function clearQueryParams(...names) {
@@ -94,7 +103,7 @@ function AccessDenied({ onNavigate, authenticated }) {
 export default function App() {
   const initialResetCreds = readResetCreds()
   const initialVerifyToken = readVerifyToken()
-  const initialAuthView = initialResetCreds ? 'reset' : initialVerifyToken ? 'verify' : 'home'
+  const initialAuthView = readInitialView(initialResetCreds, initialVerifyToken)
   const [view, setView] = useState(initialAuthView)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [toast, setToast] = useState(null)
@@ -108,6 +117,12 @@ export default function App() {
   const [marketLoading, setMarketLoading] = useState(false)
   const [dashboard, setDashboard] = useState(null)
   const [profile, setProfile] = useState(null)
+  // 'idle' (signed out) | 'loading' | 'ready' | 'error' — the admin area uses
+  // this to distinguish "still resolving" from "known non-admin".
+  const [profileStatus, setProfileStatus] = useState(() => (token ? 'loading' : 'idle'))
+  // Read through a ref inside navigate so navigation stays stable and does not
+  // re-create every downstream callback whenever the profile object changes.
+  const profileRef = useRef(null)
   const [tickets, setTickets] = useState([])
   const [watchlist, setWatchlist] = useState([])
   const [conversations, setConversations] = useState([])
@@ -125,6 +140,8 @@ export default function App() {
     return () => clearTimeout(timer)
   }, [toast])
 
+  useEffect(() => { profileRef.current = profile }, [profile])
+
   const navigate = useCallback((next) => {
     setMobileNavOpen(false)
     setAuthError('')
@@ -133,13 +150,37 @@ export default function App() {
     // the token before navigating to the dashboard.
     const stored = getStoredToken()
     // The workspace and admin areas are for signed-in users only.
-    const isProtected = APP_VIEWS.includes(next) || ADMIN_VIEWS.includes(next)
+    const isProtected = isProtectedView(next)
     // Authenticated users have no business on the login/registration screens;
-    // send them to their dashboard instead.
-    const target = isProtected && !stored ? 'login' : stored && AUTH_VIEWS.includes(next) ? 'portal' : next
+    // send them to the dashboard matching their role instead.
+    const target = isProtected && !stored ? 'login' : stored && AUTH_VIEWS.includes(next) ? homeFor(profileRef.current) : next
     if (AUTH_VIEWS.includes(target)) setAuthMode(target)
+    // Keep the address bar in sync so reloads and shared links reopen the
+    // same screen. Failures here must never block navigation.
+    const path = pathFor(target)
+    try {
+      if (path && typeof window !== 'undefined' && window.history) {
+        const current = `${window.location.pathname}${window.location.search}${window.location.hash}`
+        if (current !== path) window.history.pushState({ veltrixView: target }, '', path)
+      }
+    } catch (error) {
+      console.error('history update failed', error)
+    }
     setView(target)
     window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [])
+
+  // Browser back/forward buttons drive the same view state as in-app links.
+  useEffect(() => {
+    const handlePopState = () => {
+      const next = viewForPath(window.location.pathname)
+      setMobileNavOpen(false)
+      setAuthError('')
+      if (AUTH_VIEWS.includes(next)) setAuthMode(next)
+      setView(next)
+    }
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
   }, [])
 
   const authHeaders = useMemo(
@@ -164,6 +205,7 @@ export default function App() {
     setToken('')
     setDashboard(null)
     setProfile(null)
+    setProfileStatus('idle')
     setTickets([])
     setWatchlist([])
     setConversations([])
@@ -299,11 +341,30 @@ export default function App() {
     }
   }, [token, authHeaders])
 
+  const loadProfile = useCallback(async () => {
+    if (!getStoredToken()) return null
+    setProfileStatus('loading')
+    try {
+      const res = await api.get(`${API_ROOT}/profile/`, authHeaders)
+      setProfile(res.data)
+      setProfileStatus('ready')
+      return res.data
+    } catch (error) {
+      console.error('profile load failed', error)
+      // A 401 here is already handled by the axios interceptor (refresh or
+      // sign-out); anything else means we cannot confirm the caller's role.
+      setProfileStatus((prev) => (getStoredToken() ? 'error' : 'idle'))
+      if (error?.response?.status === 403) logout('This account is inactive.')
+      return null
+    }
+  }, [authHeaders, logout])
+
   // Load authenticated user data
   useEffect(() => {
     if (!token) {
       setDashboard(null)
       setProfile(null)
+      setProfileStatus('idle')
       setTickets([])
       setWatchlist([])
       setConversations([])
@@ -316,9 +377,7 @@ export default function App() {
       .then((res) => { if (active) setDashboard(res.data) })
       .catch((error) => console.error('dashboard load failed', error))
 
-    api.get(`${API_ROOT}/profile/`, authHeaders)
-      .then((res) => { if (active) setProfile(res.data) })
-      .catch((error) => console.error('profile load failed', error))
+    loadProfile()
 
     api.get(`${API_ROOT}/support/`, authHeaders)
       .then((res) => { if (active) setTickets(res.data || []) })
@@ -333,7 +392,7 @@ export default function App() {
       .catch(() => {})
 
     return () => { active = false }
-  }, [token, authHeaders])
+  }, [token, authHeaders, loadProfile])
 
   const handleAuth = async (event) => {
     event.preventDefault()
@@ -369,8 +428,11 @@ export default function App() {
       if (!access) throw new Error('No access token returned')
 
       // Seed the profile from the authenticated identity returned by the
-      // login endpoint so the correct role is known immediately.
-      if (identity && typeof identity === 'object') setProfile(identity)
+      // login endpoint so the correct role is known immediately, so the very
+      // first navigation already lands in the right area (no admin detour
+      // through, or flash of, the client portal).
+      const seededProfile = identity && typeof identity === 'object' ? identity : null
+      if (seededProfile) setProfile(seededProfile)
 
       try {
         sessionStorage.setItem('veltrix_token', access)
@@ -389,7 +451,10 @@ export default function App() {
 
       setToken(access)
       showToast(authMode === 'register' ? 'Account registered successfully. Welcome to VELTRIX.' : 'Signed in to VELTRIX Brokerage.')
-      navigate('portal')
+      // Route by role: administrators to /admin, clients to /dashboard. If the
+      // login response omitted the identity, the profile fetch fills it in and
+      // the admin guard decides then.
+      navigate(homeFor(seededProfile))
     } catch (error) {
       const status = error?.response?.status
       const url = String(error?.config?.url || '')
@@ -671,7 +736,6 @@ export default function App() {
   }
 
   const isHome = view === 'home'
-  const isAdmin = ADMIN_VIEWS.includes(view)
 
   const ctx = {
     marketRows,
@@ -679,11 +743,17 @@ export default function App() {
     marketLoading,
     dashboard,
     profile,
+    profileStatus,
     tickets,
     watchlist,
     conversations,
     token,
     onNavigate: navigate,
+    onProfileSaved: (data) => {
+      setProfile(data)
+      setProfileStatus('ready')
+    },
+    onReloadProfile: loadProfile,
     showToast,
     onOpenTrade: openTradeModal,
     onOpenTopUp: openTopUpModal,
@@ -698,20 +768,62 @@ export default function App() {
     onLogout: logout,
   }
 
-  const isAdminUser = Boolean(profile && (profile.is_staff || profile.role === 'admin'))
+  // Signed-in users never see the login/register screens: the auth views fall
+  // through to the landing page for their role instead.
+  const effectiveView = token && AUTH_VIEWS.includes(view) ? homeFor(profile) : view
+
+  // Decide how the admin area renders. A session with an unresolved profile is
+  // 'loading' — it must never redirect or deny, otherwise an administrator
+  // would be bounced out of /admin while their profile request is in flight.
+  const adminAccess = isAdminView(effectiveView)
+    ? resolveAdminAccess({ hasToken: Boolean(token), profile, profileStatus })
+    : null
 
   let appContent = null
-  if (isAdmin) {
-    if (token && !profile) {
-      appContent = <div className="section-wrap"><div className="form-card"><p>Loading…</p></div></div>
-    } else if (isAdminUser) {
-      appContent = <AdminViews view={view} ctx={ctx} onNavigate={navigate} showToast={showToast} />
-    } else {
+  if (isAdminView(effectiveView)) {
+    if (adminAccess === 'login') {
+      appContent = (
+        <div className="section-wrap">
+          <AuthView
+            mode="login"
+            onSubmit={handleAuth}
+            error={authError || 'Administrator sign-in required.'}
+            onNavigate={navigate}
+          />
+        </div>
+      )
+    } else if (adminAccess === 'loading') {
+      appContent = (
+        <div className="section-wrap">
+          <div className="form-card">
+            <p role="status">Verifying administrator access…</p>
+          </div>
+        </div>
+      )
+    } else if (adminAccess === 'error') {
+      appContent = (
+        <div className="section-wrap">
+          <div className="form-card">
+            <div className="error-banner" role="alert">
+              <span>We could not confirm your administrator access. Check your connection and retry.</span>
+              <button className="btn btn-outline" onClick={loadProfile} type="button">
+                Retry ↻
+              </button>
+            </div>
+            <button className="btn btn-quiet" type="button" onClick={() => logout()}>
+              Sign out
+            </button>
+          </div>
+        </div>
+      )
+    } else if (adminAccess === 'denied') {
       appContent = <AccessDenied onNavigate={navigate} authenticated={Boolean(token)} />
+    } else {
+      appContent = <AdminViews view={effectiveView} ctx={ctx} onNavigate={navigate} showToast={showToast} />
     }
-  } else if (APP_VIEWS.includes(view)) {
+  } else if (APP_VIEWS.includes(effectiveView)) {
     appContent = token ? (
-      <AppViews view={view} ctx={ctx} />
+      <AppViews view={effectiveView} ctx={ctx} />
     ) : (
       // Never render the workspace to an anonymous visitor.
       <div className="section-wrap">
@@ -723,9 +835,6 @@ export default function App() {
         />
       </div>
     )
-  } else if (token && AUTH_VIEWS.includes(view)) {
-    // Never render the login/register forms to an authenticated user.
-    appContent = <AppViews view="portal" ctx={ctx} />
   } else {
     appContent = (
       <div className="section-wrap">
@@ -752,6 +861,7 @@ export default function App() {
         onCloseNav={() => setMobileNavOpen(false)}
         onNavigate={navigate}
         authenticated={Boolean(token)}
+        dashboardView={token ? homeFor(profile) : 'portal'}
       />
       <main id="publicSite" className={isHome ? '' : 'hidden'}>
         <Landing onNavigate={navigate} quotes={liveQuotes} token={token} />
@@ -760,14 +870,18 @@ export default function App() {
         {!isHome && appContent}
       </main>
       {isHome && <SiteFooter onNavigate={navigate} />}
-      <LiveChat
-        token={token}
-        profile={profile}
-        conversations={conversations}
-        onCreateConversation={handleCreateConversation}
-        onSendMessage={handleSendMessage}
-        onNavigate={navigate}
-      />
+      {/* The customer chat widget is a client-workspace tool; on the admin
+          console support conversations are handled in the support desk view. */}
+      {!isAdminView(view) && (
+        <LiveChat
+          token={token}
+          profile={profile}
+          conversations={conversations}
+          onCreateConversation={handleCreateConversation}
+          onSendMessage={handleSendMessage}
+          onNavigate={navigate}
+        />
+      )}
       <Toast message={toast?.message} />
 
       <TradeModal

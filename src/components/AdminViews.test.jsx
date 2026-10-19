@@ -1,7 +1,11 @@
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { createRoot } from 'react-dom/client'
+import { act } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import AdminViews from './AdminViews.jsx'
+
+globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
 vi.mock('../services/adminFeed', () => ({
   cleanParams: (params) => params,
@@ -44,6 +48,38 @@ vi.mock('../services/adminFeed', () => ({
       transaction_count: 3,
     }],
     count: 1,
+  }),
+  fetchAdminUser: async () => ({
+    id: 4,
+    email: 'ann@example.test',
+    username: 'ann@example.test',
+    first_name: 'Ann',
+    last_name: 'Lee',
+    role: 'client',
+    is_verified: false,
+    is_active: true,
+    is_staff: false,
+    is_superuser: false,
+    date_joined: '2026-10-01T10:00:00Z',
+    last_login: '2026-10-14T08:30:00Z',
+    cash_balance: '250.00',
+    transaction_count: 3,
+    positions: [{
+      symbol: 'BTC-USD', name: 'Bitcoin', quantity: '0.5', avg_price: '60000.00', market_value: '33500.00',
+    }],
+    recent_transactions: [{
+      id: 2,
+      user_id: 4,
+      user_email: 'ann@example.test',
+      user_name: 'Ann Lee',
+      symbol: 'BTC-USD',
+      side: 'buy',
+      quantity: '0.5',
+      execution_price: '67000',
+      amount: '33500.00',
+      status: 'completed',
+      created_at: '2026-10-12T09:00:00Z',
+    }],
   }),
   fetchAdminTransactions: async () => ({
     results: [{
@@ -97,7 +133,33 @@ const cases = [
   ['admin-instruments', 'Instrument Listings'],
   ['admin-support', 'Client Services Desk — Staff Inbox'],
   ['admin-audit', 'Regulatory Audit Trail'],
+  ['admin-profile', 'Administrator Profile'],
 ]
+
+const settle = () => act(async () => {
+  await new Promise((resolve) => { setTimeout(resolve, 0) })
+})
+
+async function mountView(view) {
+  const container = document.createElement('div')
+  document.body.appendChild(container)
+  const root = createRoot(container)
+  await act(async () => {
+    root.render(<AdminViews view={view} ctx={ctx} onNavigate={() => {}} showToast={() => {}} />)
+  })
+  await settle()
+  return { container, root }
+}
+
+async function click(container, label) {
+  const button = Array.from(container.querySelectorAll('button'))
+    .find((candidate) => candidate.textContent.trim() === label)
+  expect(button).toBeTruthy()
+  await act(async () => {
+    button.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }))
+  })
+  await settle()
+}
 
 describe('AdminViews', () => {
   it.each(cases)('renders the %s view without crashing', (view, title) => {
@@ -108,10 +170,44 @@ describe('AdminViews', () => {
     expect(markup).toContain('app-sidebar')
   })
 
+  it('opens a read-only client dossier from the directory', async () => {
+    const { container, root } = await mountView('admin-customers')
+
+    await click(container, 'Details')
+
+    expect(container.textContent).toContain('ann@example.test')
+    expect(container.textContent).toContain('Open positions')
+    expect(container.textContent).toContain('BTC-USD')
+    expect(container.textContent).toContain('Inspection only')
+    // No funds can be moved from the dossier.
+    expect(container.textContent).not.toContain('Deposit funds')
+
+    await act(() => { root.unmount() })
+  })
+
+  it('inspects a transaction without exposing balance controls', async () => {
+    const { container, root } = await mountView('admin-transactions')
+
+    await click(container, 'Inspect')
+
+    expect(container.textContent).toContain('Transaction #2')
+    expect(container.textContent).toContain('EXECUTION PRICE')
+    expect(container.textContent).toMatch(/no balance, deposit or withdrawal change/i)
+
+    await act(() => { root.unmount() })
+  })
+
   it('returns null for unknown admin views', () => {
     const markup = renderToStaticMarkup(
       <AdminViews view="admin-nope" ctx={ctx} onNavigate={() => {}} showToast={() => {}} />
     )
     expect(markup).toBe('')
+  })
+
+  it('applies the scoped admin console theme', () => {
+    const markup = renderToStaticMarkup(
+      <AdminViews view="admin" ctx={ctx} onNavigate={() => {}} showToast={() => {}} />
+    )
+    expect(markup).toContain('admin-shell')
   })
 })

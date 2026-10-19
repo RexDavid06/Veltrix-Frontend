@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import AppSidebar from './AppSidebar'
 import DataTable from './DataTable'
 import { MarketTable, MarketRowsTable } from './MarketTable'
+import ProfileView from './ProfileView'
 import { formatCurrency, formatPrice } from '../data'
 
 function Shell({ view, title, subtitle, admin, onNavigate, onLogout, children }) {
@@ -867,6 +868,19 @@ export default function AppViews({ view, ctx }) {
         onLogout={ctx.onLogout}
       >
         <Settings ctx={ctx} />
+      </Shell>
+    )
+  }
+  if (view === 'profile') {
+    return (
+      <Shell
+        view="profile"
+        title="My Profile"
+        subtitle="Review your account record and update your personal details."
+        onNavigate={ctx.onNavigate}
+        onLogout={ctx.onLogout}
+      >
+        <ProfileView ctx={ctx} />
       </Shell>
     )
   }

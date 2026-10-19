@@ -18,6 +18,7 @@ export const NAV_ITEMS = [
   ['Verification', 'kyc', '✓', 'ACCOUNT'],
   ['Support', 'portal-support', '✳', 'ACCOUNT'],
   ['Settings', 'settings', '⚙', 'ACCOUNT'],
+  ['Profile', 'profile', '☺', 'ACCOUNT'],
 ]
 
 export const ADMIN_ITEMS = [
@@ -28,6 +29,7 @@ export const ADMIN_ITEMS = [
   ['Support inbox', 'admin-support', '✳', 'OPERATIONS'],
   ['Instruments', 'admin-instruments', '◫', 'SYSTEM'],
   ['Audit logs', 'admin-audit', '◷', 'SYSTEM'],
+  ['My profile', 'admin-profile', '☺', 'SYSTEM'],
 ]
 
 export function badgeFor(symbol = '', name = '') {

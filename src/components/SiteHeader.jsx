@@ -1,6 +1,13 @@
 import React from 'react'
 
-export default function SiteHeader({ mobileOpen, onToggleNav, onCloseNav, onNavigate, authenticated }) {
+export default function SiteHeader({
+  mobileOpen,
+  onToggleNav,
+  onCloseNav,
+  onNavigate,
+  authenticated,
+  dashboardView = 'portal',
+}) {
   return (
     <header className="site-header">
       <a
@@ -33,8 +40,12 @@ export default function SiteHeader({ mobileOpen, onToggleNav, onCloseNav, onNavi
       </nav>
       <div className="header-actions">
         {authenticated ? (
-          <button className="btn btn-primary" data-view="portal" onClick={() => onNavigate('portal')}>
-            Dashboard <span>↗</span>
+          <button
+            className="btn btn-primary"
+            data-view={dashboardView}
+            onClick={() => onNavigate(dashboardView)}
+          >
+            {dashboardView === 'admin' ? 'Admin console' : 'Dashboard'} <span>↗</span>
           </button>
         ) : (
           <>

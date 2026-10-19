@@ -26,7 +26,7 @@ export default function AppSidebar({ active, admin = false, onNavigate, onLogout
           </React.Fragment>
         )
       })}
-      <div className="sidebar-title">CLIENT ACCOUNT</div>
+      <div className="sidebar-title">{admin ? 'ADMINISTRATOR' : 'CLIENT ACCOUNT'}</div>
       <button
         className="side-link"
         data-view="login"
