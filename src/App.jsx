@@ -358,12 +358,19 @@ export default function App() {
         })
       }
 
-      // DRF SimpleJWT expects username field
+      // The backend accepts either the account email or username here (login
+      // treats the identifier as a case-insensitive username/email), so an
+      // administrator whose username is not their email can sign in too.
       const loginResponse = await api.post(`${API_ROOT}/auth/token/`, { username: email, password })
       const access = loginResponse.data.access
       const refresh = loginResponse.data.refresh
+      const identity = loginResponse.data.user
 
       if (!access) throw new Error('No access token returned')
+
+      // Seed the profile from the authenticated identity returned by the
+      // login endpoint so the correct role is known immediately.
+      if (identity && typeof identity === 'object') setProfile(identity)
 
       try {
         sessionStorage.setItem('veltrix_token', access)
@@ -384,7 +391,15 @@ export default function App() {
       showToast(authMode === 'register' ? 'Account registered successfully. Welcome to VELTRIX.' : 'Signed in to VELTRIX Brokerage.')
       navigate('portal')
     } catch (error) {
-      setAuthError(extractApiError(error, 'Authentication failed. Check your details and try again.'))
+      const status = error?.response?.status
+      const url = String(error?.config?.url || '')
+      if (status === 401 && url.includes('/auth/token/') && !url.includes('/auth/token/refresh/')) {
+        // Never claim the account is missing: a 401 only means the submitted
+        // credentials did not match (wrong password or unknown identifier).
+        setAuthError('Incorrect email/username or password. Please check your details and try again.')
+      } else {
+        setAuthError(extractApiError(error, 'Authentication failed. Check your details and try again.'))
+      }
     }
   }
 
