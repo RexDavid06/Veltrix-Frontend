@@ -131,6 +131,7 @@ export default function App() {
   const [tradeModalOpen, setTradeModalOpen] = useState(false)
   const [tradeSymbol, setTradeSymbol] = useState('AAPL')
   const [topUpModalOpen, setTopUpModalOpen] = useState(false)
+  const [liveChatOpen, setLiveChatOpen] = useState(false)
 
   const showToast = useCallback((message) => setToast({ id: Date.now(), message }), [])
 
@@ -765,6 +766,7 @@ export default function App() {
     onSendMessage: handleSendMessage,
     onResolveConversation: handleResolveConversation,
     onReopenConversation: handleReopenConversation,
+    onOpenLiveChat: () => setLiveChatOpen(true),
     onLogout: logout,
   }
 
@@ -880,6 +882,8 @@ export default function App() {
           onCreateConversation={handleCreateConversation}
           onSendMessage={handleSendMessage}
           onNavigate={navigate}
+          open={liveChatOpen}
+          onOpenChange={setLiveChatOpen}
         />
       )}
       <Toast message={toast?.message} />

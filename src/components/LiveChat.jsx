@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
+import { TELEGRAM_DESK_LINK } from '../supportChannels'
 
 const AUTO_ACK = 'Message received and added to your support conversation for our client desk to review. This is an automated confirmation — an account specialist will reply in this thread.'
-const TELEGRAM_LINK = import.meta.env.VITE_TELEGRAM_LINK || 'https://t.me/+07074195975'
 
 export default function LiveChat({
   token,
@@ -10,8 +10,16 @@ export default function LiveChat({
   onCreateConversation,
   onSendMessage,
   onNavigate,
+  open: controlledOpen,
+  onOpenChange,
 }) {
-  const [open, setOpen] = useState(false)
+  const [internalOpen, setInternalOpen] = useState(false)
+  const open = typeof controlledOpen === 'boolean' ? controlledOpen : internalOpen
+  const setOpen = (next) => {
+    const value = typeof next === 'function' ? next(open) : next
+    if (onOpenChange) onOpenChange(value)
+    if (typeof controlledOpen !== 'boolean') setInternalOpen(value)
+  }
   const [value, setValue] = useState('')
   const [messages, setMessages] = useState([
     { label: 'VELTRIX SUPPORT', text: 'Welcome to VELTRIX Client Services. How may we assist your trading today?', user: false },
@@ -221,20 +229,42 @@ export default function LiveChat({
         )}
 
         <div className="live-chat-footnote">
-          <div style={{ marginBottom: '8px' }}>Need another way to reach us?</div>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            <a className="btn btn-quiet" href={TELEGRAM_LINK} target="_blank" rel="noreferrer">Telegram Desk</a>
-            <button
-              type="button"
-              className="btn btn-outline"
-              onClick={() => {
-                setOpen(false)
-                if (onNavigate) onNavigate(token ? 'portal-support' : 'login')
-              }}
-            >
-              Support Portal
-            </button>
+          <div className="chat-option-heading">
+            {TELEGRAM_DESK_LINK ? 'Two ways to reach the client desk' : 'Reach the client desk'}
           </div>
+          <div className="chat-option-list">
+            <div className="chat-option chat-option-current">
+              <span className="chat-option-name">1 · In-app chat</span>
+              <span className="chat-option-desc">
+                You are here. Every message in this thread is stored on your account and appears instantly in the admin support inbox.
+              </span>
+              <span className="chat-option-state">Active now</span>
+            </div>
+            {TELEGRAM_DESK_LINK && (
+              <a
+                className="chat-option"
+                href={TELEGRAM_DESK_LINK}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <span className="chat-option-name">2 · Telegram</span>
+                <span className="chat-option-desc">
+                  Continue on Telegram. Opens a direct conversation with our support desk — no number to copy.
+                </span>
+                <span className="chat-option-state">Open Telegram ↗</span>
+              </a>
+            )}
+          </div>
+          <button
+            type="button"
+            className="btn btn-outline chat-option-portal"
+            onClick={() => {
+              setOpen(false)
+              if (onNavigate) onNavigate(token ? 'portal-support' : 'login')
+            }}
+          >
+            Open Support Portal
+          </button>
         </div>
       </section>
 
