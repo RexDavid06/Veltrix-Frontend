@@ -56,6 +56,25 @@ export function formatCurrency(value = 0) {
   return `$${number.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
+// Every transaction the backend writes today carries status='simulated' (demo
+// orders and demo top-ups) — no real money moves. Views must label these
+// records as simulated instead of presenting them as real deposits or
+// settlements. Replace these helpers only when a genuine funding flow exists.
+export function transactionSideLabel(tx = {}) {
+  return tx.side === 'topup' ? 'Demo funding' : String(tx.side ?? '')
+}
+
+export function transactionReferenceLabel(tx = {}) {
+  if (tx.symbol) return String(tx.symbol)
+  return tx.side === 'topup' ? 'Simulated (demo balance)' : '—'
+}
+
+export function transactionStatusLabel(tx = {}) {
+  const status = String(tx.status ?? '')
+  if (!status) return '—'
+  return status.charAt(0).toUpperCase() + status.slice(1)
+}
+
 // Maps the DRF /api/market/ payload into the original demo table row shape:
 // [symbol, name, price, change, tone, badge]
 export function marketRowsFromApi(quotes = []) {

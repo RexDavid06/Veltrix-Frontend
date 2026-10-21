@@ -1,8 +1,8 @@
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import AppSidebar from './AppSidebar'
 import DataTable from './DataTable'
 import ProfileView from './ProfileView'
-import { formatCurrency } from '../data'
+import { formatCurrency, transactionReferenceLabel, transactionSideLabel, transactionStatusLabel } from '../data'
 import {
   extractAdminError,
   fetchAdminAudit,
@@ -18,10 +18,16 @@ import {
 // Must match the backend's AdminPagination page_size so pager math is correct.
 const PAGE_SIZE = 20
 
-function AdminShell({ view, title, subtitle, onNavigate, onLogout, children }) {
+function AdminShell({ view, title, subtitle, onNavigate, onLogout, ctx, children }) {
+  // Total unread client messages across the support inbox, surfaced on the
+  // sidebar so a new client message is noticed from any admin view.
+  const unreadCount = (ctx?.conversations || []).reduce(
+    (sum, c) => sum + Number(c.unread_count || 0),
+    0
+  )
   return (
     <div className="app-shell admin-shell">
-      <AppSidebar active={view} admin onNavigate={onNavigate} onLogout={onLogout} />
+      <AppSidebar active={view} admin onNavigate={onNavigate} onLogout={onLogout} unreadCount={unreadCount} />
       <section className="app-main">
         <div className="app-topline admin-topline">
           <div>
@@ -412,13 +418,13 @@ function AdminUserDetail({ record, loading, error, onRetry, onClose }) {
               key={`ts-${tx.id}`}
               style={{ textTransform: 'uppercase', color: tx.side === 'sell' ? 'var(--gold)' : 'var(--mint)' }}
             >
-              {tx.side}
+              {transactionSideLabel(tx)}
             </b>,
-            tx.symbol || 'USD Deposit',
+            transactionReferenceLabel(tx),
             Number(tx.quantity ?? 0).toLocaleString('en-US', { maximumFractionDigits: 4 }),
             formatCurrency(Number(tx.amount ?? 0)),
             <span className={`status${tx.status === 'pending' ? ' pending' : ''}`} key={`tst-${tx.id}`}>
-              {tx.status}
+              {transactionStatusLabel(tx)}
             </span>,
             formatDate(tx.created_at),
           ])}
@@ -686,7 +692,7 @@ function TransactionsView() {
         <option value="">All types</option>
         <option value="buy">Buy</option>
         <option value="sell">Sell</option>
-        <option value="topup">Top-Up</option>
+        <option value="topup">Demo funding (simulated)</option>
       </select>
       <select value={status} onChange={(event) => { setStatus(event.target.value); setPage(1) }}>
         <option value="">All settlements</option>
@@ -716,7 +722,7 @@ function TransactionsView() {
             </button>
           </div>
           <div className="detail-facts">
-            <div><span>INSTRUMENT</span><b>{inspected.symbol || 'USD Deposit'}</b></div>
+            <div><span>INSTRUMENT</span><b>{transactionReferenceLabel(inspected)}</b></div>
             <div><span>QUANTITY</span><b>{Number(inspected.quantity ?? 0).toLocaleString('en-US', { maximumFractionDigits: 4 })}</b></div>
             <div><span>EXECUTION PRICE</span><b>{formatCurrency(Number(inspected.execution_price ?? 0))}</b></div>
             <div><span>AMOUNT</span><b>{formatCurrency(Number(inspected.amount ?? 0))}</b></div>
@@ -749,20 +755,20 @@ function TransactionsView() {
               color: tx.side === 'sell' ? 'var(--gold)' : 'var(--mint)',
             }}
           >
-            {tx.side}
+            {transactionSideLabel(tx)}
           </b>,
           <span key={`user-${tx.id}`} style={{ display: 'grid' }}>
             <span>{tx.user_name}</span>
             <small style={{ color: '#74887b', fontSize: 9 }}>{tx.user_email}</small>
           </span>,
-          <b key={`sym-${tx.id}`}>{tx.symbol || 'USD Deposit'}</b>,
+          <b key={`sym-${tx.id}`}>{transactionReferenceLabel(tx)}</b>,
           Number(tx.quantity || 0).toLocaleString('en-US', { maximumFractionDigits: 4 }),
           formatCurrency(Number(tx.amount ?? 0)),
           <span
             className={`status${tx.status === 'pending' ? ' pending' : tx.status === 'simulated' ? ' review' : ''}`}
             key={`st-${tx.id}`}
           >
-            {tx.status}
+            {transactionStatusLabel(tx)}
           </span>,
           formatDate(tx.created_at),
           <button
@@ -776,7 +782,7 @@ function TransactionsView() {
           </button>,
         ]}
         emptyTitle={search || side || status ? 'No transactions match these filters.' : 'No transactions recorded yet.'}
-        emptyHint="Trades and deposits written by the backend appear here in real time."
+        emptyHint="Simulated trades and demo funding records written by the backend appear here in real time."
         footer={<Pager page={page} count={count} onPage={setPage} />}
       />
     </>
@@ -957,33 +963,72 @@ function SupportDeskView({ ctx, showToast }) {
     tickets = [],
     profile,
     onSendMessage,
+    onMarkRead,
     onResolveConversation,
     onReopenConversation,
   } = ctx
 
   const [selectedConvoId, setSelectedConvoId] = useState(null)
+  // Which conversation's unread count we have already cleared, so we only call
+  // mark-read once per thread rather than on every poll.
+  const markedReadRef = useRef(null)
   const [adminReply, setAdminReply] = useState('')
   const [replyLoading, setReplyLoading] = useState(false)
+  const [replyError, setReplyError] = useState('')
+  const replyLoadingRef = useRef(false)
 
   const activeConversations = conversations.filter((c) => c.is_active)
   const totalOpenCases = activeConversations.length + tickets.length
+  const totalUnreadMessages = conversations.reduce(
+    (sum, c) => sum + Number(c.unread_count || 0),
+    0
+  )
+
+  // Opening a thread marks the client's messages read, clearing the unread
+  // notification for that conversation. Re-runs only when the selected thread
+  // or its unread count changes.
+  useEffect(() => {
+    if (!onMarkRead || selectedConvoId === null || selectedConvoId === undefined) return
+    const convo = conversations.find((c) => c.id === selectedConvoId)
+    if (!convo || Number(convo.unread_count || 0) === 0) return
+    if (markedReadRef.current === selectedConvoId) return
+    markedReadRef.current = selectedConvoId
+    onMarkRead(selectedConvoId)
+  }, [selectedConvoId, conversations, onMarkRead])
+
+  const activeConvo = conversations.find((c) => c.id === selectedConvoId) || conversations[0]
 
   const handleSendAdminReply = async (event) => {
     event.preventDefault()
-    if (!adminReply.trim() || !selectedConvoId || !onSendMessage) return
+    // Ref guard blocks a duplicate submit from a rapid double-click before the
+    // disabled state has re-rendered.
+    if (replyLoadingRef.current) return
+    const content = adminReply.trim()
+    // The reply form is rendered against `activeConvo` (the selected thread, or
+    // the first one); target that same conversation so a reply sent without an
+    // explicit click still lands on the thread the admin sees.
+    const targetConvoId = activeConvo?.id
+    if (!content || targetConvoId === undefined || targetConvoId === null || !onSendMessage) return
+    replyLoadingRef.current = true
     setReplyLoading(true)
+    setReplyError('')
     try {
-      await onSendMessage(selectedConvoId, `[STAFF RESPONSE] ${adminReply.trim()}`)
+      // Success is confirmed only after the server persists the reply; the
+      // draft is cleared only then, so a failed send is never lost.
+      await onSendMessage(targetConvoId, content)
       setAdminReply('')
       showToast('Staff reply dispatched to client.')
     } catch (err) {
-      showToast('Failed to send reply.')
+      const message = err?.response?.data?.detail
+        || err?.response?.data?.content?.[0]
+        || 'Failed to send reply. Please try again.'
+      setReplyError(message)
+      showToast(`Reply not sent: ${message}`)
     } finally {
+      replyLoadingRef.current = false
       setReplyLoading(false)
     }
   }
-
-  const activeConvo = conversations.find((c) => c.id === selectedConvoId) || conversations[0]
 
   return (
     <>
@@ -1018,10 +1063,21 @@ function SupportDeskView({ ctx, showToast }) {
                       background: c.id === (activeConvo?.id) ? '#163326' : '#101e17',
                     }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11, fontWeight: 700 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11, fontWeight: 700, gap: 8 }}>
                       <span>Case #{c.id}: {c.subject}</span>
-                      <span className={c.is_active ? 'status' : 'status review'}>
-                        {c.is_active ? 'Active Client' : 'Resolved'}
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {Number(c.unread_count || 0) > 0 && (
+                          <span
+                            className="status pending"
+                            data-unread={c.unread_count}
+                            style={{ fontWeight: 800 }}
+                          >
+                            {c.unread_count} new
+                          </span>
+                        )}
+                        <span className={c.is_active ? 'status' : 'status review'}>
+                          {c.is_active ? 'Active Client' : 'Resolved'}
+                        </span>
                       </span>
                     </div>
                     <div style={{ display: 'flex', gap: 6, fontSize: 10, color: 'var(--green)', marginTop: 4, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -1142,14 +1198,15 @@ function SupportDeskView({ ctx, showToast }) {
 
                 <div className="support-thread" style={{ maxHeight: 340, overflowY: 'auto' }}>
                   {(activeConvo.messages || []).map((msg, idx) => {
-                    // `sender` is a nested user object from the backend;
-                    // treat staff/admin senders (or staff-prefixed content)
-                    // as the support side of the thread.
+                    // Attribution comes from the server: `sender` is a nested
+                    // user object and `sender_id` is the flat id. Staff/admin
+                    // senders are the support side; the client is the owner of
+                    // the conversation. The content prefix is never trusted.
                     const s = msg.sender
                     const senderIsStaff = s && typeof s === 'object'
                       ? (s.role === 'admin' || s.is_staff === true)
                       : (s === 'staff' || s === 'admin')
-                    const isStaff = senderIsStaff || (msg.content && msg.content.startsWith('[STAFF RESPONSE]'))
+                    const isStaff = Boolean(senderIsStaff)
                     return (
                       <div className={`chat-bubble ${isStaff ? 'agent' : ''}`} key={msg.id || idx}>
                         <span className="chat-meta">
@@ -1179,6 +1236,11 @@ function SupportDeskView({ ctx, showToast }) {
                         {replyLoading ? 'Sending…' : 'Send Reply ↗'}
                       </button>
                     </div>
+                    {replyError && (
+                      <small style={{ color: '#ed8d8d', fontSize: 9, marginTop: 6, display: 'block' }} role="alert">
+                        {replyError}
+                      </small>
+                    )}
                     <small style={{ color: '#74887b', fontSize: 9, marginTop: 6, display: 'block' }}>
                       Responses sent here are delivered directly to the client's support thread in real time.
                     </small>
@@ -1199,10 +1261,21 @@ function SupportDeskView({ ctx, showToast }) {
         <div className="section-row">
           <div>
             <h3>Case Load</h3>
-            <div className="muted-copy">Aggregated live from backend support records</div>
+            <div className="muted-copy">
+              Aggregated live from backend support records
+              {totalUnreadMessages > 0 && (
+                <b style={{ color: 'var(--gold)', marginLeft: 6 }}>
+                  · {totalUnreadMessages} unread message{totalUnreadMessages === 1 ? '' : 's'}
+                </b>
+              )}
+            </div>
           </div>
-          <span className={totalOpenCases > 0 ? 'status pending' : 'status'}>
-            {totalOpenCases > 0 ? `${totalOpenCases} open` : 'All clear'}
+          <span className={totalUnreadMessages > 0 ? 'status pending' : totalOpenCases > 0 ? 'status pending' : 'status'}>
+            {totalUnreadMessages > 0
+              ? `${totalUnreadMessages} new`
+              : totalOpenCases > 0
+                ? `${totalOpenCases} open`
+                : 'All clear'}
           </span>
         </div>
       </div>
@@ -1219,6 +1292,7 @@ export default function AdminViews({ view, ctx = {}, onNavigate, showToast = () 
         subtitle="Institutional operations, compliance oversight, and risk management."
         onNavigate={onNavigate}
         onLogout={ctx.onLogout}
+        ctx={ctx}
       >
         <AdminOverview onNavigate={onNavigate} ctx={ctx} />
       </AdminShell>
@@ -1233,6 +1307,7 @@ export default function AdminViews({ view, ctx = {}, onNavigate, showToast = () 
         subtitle="Registered retail, professional, and institutional client accounts."
         onNavigate={onNavigate}
         onLogout={ctx.onLogout}
+        ctx={ctx}
       >
         <div className="admin-warn">
           Protected client records. Modifications and account actions require compliance supervisor authorization.
@@ -1250,6 +1325,7 @@ export default function AdminViews({ view, ctx = {}, onNavigate, showToast = () 
         subtitle="Identity verification, AML screening, and regulatory accreditation."
         onNavigate={onNavigate}
         onLogout={ctx.onLogout}
+        ctx={ctx}
       >
         <div className="admin-warn">
           Customer document validation must comply with FATF international anti-money laundering standards.
@@ -1267,6 +1343,7 @@ export default function AdminViews({ view, ctx = {}, onNavigate, showToast = () 
         subtitle="Real-time settlement surveillance and high-value transfer screening."
         onNavigate={onNavigate}
         onLogout={ctx.onLogout}
+        ctx={ctx}
       >
         <div className="admin-warn">
           Automated transaction monitoring active. Flagged transactions are placed in temporary compliance hold.
@@ -1284,6 +1361,7 @@ export default function AdminViews({ view, ctx = {}, onNavigate, showToast = () 
         subtitle="Control which instruments are visible to clients on the public markets."
         onNavigate={onNavigate}
         onLogout={ctx.onLogout}
+        ctx={ctx}
       >
         <div className="admin-warn">
           Hiding an instrument removes it from client market lists immediately; price and execution data are managed server-side.
@@ -1301,6 +1379,7 @@ export default function AdminViews({ view, ctx = {}, onNavigate, showToast = () 
         subtitle="Incoming customer support requests and real-time live chat conversations."
         onNavigate={onNavigate}
         onLogout={ctx.onLogout}
+        ctx={ctx}
       >
         <SupportDeskView ctx={ctx} showToast={showToast} />
       </AdminShell>
@@ -1315,6 +1394,7 @@ export default function AdminViews({ view, ctx = {}, onNavigate, showToast = () 
         subtitle="Immutable security logs and administrative action history."
         onNavigate={onNavigate}
         onLogout={ctx.onLogout}
+        ctx={ctx}
       >
         <div className="admin-warn">
           Tamper-evident audit trail recording all staff operations and account modifications.
@@ -1332,6 +1412,7 @@ export default function AdminViews({ view, ctx = {}, onNavigate, showToast = () 
         subtitle="Your own account record, served by the self-service profile endpoint."
         onNavigate={onNavigate}
         onLogout={ctx.onLogout}
+        ctx={ctx}
       >
         <div className="admin-warn">
           This is your own account. Editing it uses the same authenticated /api/profile/ endpoint as

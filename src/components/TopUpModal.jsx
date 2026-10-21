@@ -1,20 +1,26 @@
 import React, { useState } from 'react'
+import { demoTopUpEnabled } from '../flags'
 
 export default function TopUpModal({ isOpen, onClose, onTopUp, currentBalance = 0 }) {
   const [amount, setAmount] = useState('2500.00')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  if (!isOpen) return null
+  // Simulated funding is opt-in and never shown in a production build.
+  if (!isOpen || !demoTopUpEnabled()) return null
 
   const quickAmounts = ['500.00', '1000.00', '2500.00', '5000.00', '10000.00']
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
+    if (!demoTopUpEnabled()) {
+      setError('Demo funding is disabled in this build.')
+      return
+    }
     const num = Number(amount)
     if (!num || num <= 0) {
-      setError('Please enter a valid positive dollar amount.')
+      setError('Please enter a valid positive demo amount.')
       return
     }
 
@@ -26,7 +32,7 @@ export default function TopUpModal({ isOpen, onClose, onTopUp, currentBalance = 
       const msg = err?.response?.data?.detail
         || err?.response?.data?.error
         || err?.message
-        || 'Failed to process deposit transaction.'
+        || 'Failed to add simulated demo funds.'
       setError(msg)
     } finally {
       setLoading(false)
@@ -62,7 +68,7 @@ export default function TopUpModal({ isOpen, onClose, onTopUp, currentBalance = 
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <div className="eyebrow" style={{ margin: 0 }}>
-            <span className="eyebrow-line" /> ACCOUNT FUNDING
+            <span className="eyebrow-line" /> DEMO ACCOUNT FUNDING
           </div>
           <button
             type="button"
@@ -80,14 +86,14 @@ export default function TopUpModal({ isOpen, onClose, onTopUp, currentBalance = 
           </button>
         </div>
 
-        <h2 style={{ fontSize: 24, margin: '0 0 6px' }}>Deposit Trading Funds</h2>
+        <h2 style={{ fontSize: 24, margin: '0 0 6px' }}>Add Demo Funds (Simulated)</h2>
         <p style={{ color: '#8ca094', fontSize: 11, margin: '0 0 16px' }}>
           Current balance: <strong style={{ color: 'var(--green)' }}>${Number(currentBalance || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} USD</strong>
         </p>
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label htmlFor="topupAmount">Deposit Amount (USD)</label>
+            <label htmlFor="topupAmount">Demo Amount (USD)</label>
             <input
               id="topupAmount"
               type="number"
@@ -139,12 +145,14 @@ export default function TopUpModal({ isOpen, onClose, onTopUp, currentBalance = 
               style={{ flex: 2 }}
               disabled={loading}
             >
-              {loading ? 'Processing Deposit…' : `Deposit $${amount || '0'} USD`} ↗
+              {loading ? 'Processing demo credit…' : `Add $${amount || '0'} Demo Funds`} ↗
             </button>
           </div>
 
           <div className="form-note" style={{ marginTop: 14 }}>
-            Demo top-up. Credits simulated funds to your demo balance for preview purposes only — no real deposit is made, no funds are held, and no payment details are collected.
+            Simulated demo balance only — no real money is deposited, no funds are held, and no payment
+            details are collected. Demo funding must be explicitly enabled and is disabled in production
+            builds and deployments.
           </div>
         </form>
       </div>

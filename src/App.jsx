@@ -12,6 +12,7 @@ import AdminViews from './components/AdminViews'
 import TradeModal from './components/TradeModal'
 import TopUpModal from './components/TopUpModal'
 import { badgeFor, formatPrice } from './data'
+import { demoTopUpEnabled } from './flags'
 import {
   APP_VIEWS,
   AUTH_VIEWS,
@@ -126,6 +127,10 @@ export default function App() {
   const [tickets, setTickets] = useState([])
   const [watchlist, setWatchlist] = useState([])
   const [conversations, setConversations] = useState([])
+  // Highest unread total seen so far, so a background poll can raise a toast
+  // exactly once per newly-arrived message instead of on every refresh.
+  const unreadSeenRef = useRef(0)
+  const unreadSeededRef = useRef(false)
 
   // Modal states
   const [tradeModalOpen, setTradeModalOpen] = useState(false)
@@ -342,6 +347,22 @@ export default function App() {
     }
   }, [token, authHeaders])
 
+  // Pull the latest conversations. Used by the initial load, after sending a
+  // message, and by the background poll so admin replies reach an idle client
+  // (and client messages refresh the admin unread counters) without a reload.
+  const reloadConversations = useCallback(async () => {
+    if (!token) return []
+    try {
+      const res = await api.get(`${API_ROOT}/conversations/`, authHeaders)
+      const list = Array.isArray(res.data) ? res.data : []
+      setConversations(list)
+      return list
+    } catch (e) {
+      // A failed poll must never crash or clear the thread; keep last state.
+      return []
+    }
+  }, [token, authHeaders])
+
   const loadProfile = useCallback(async () => {
     if (!getStoredToken()) return null
     setProfileStatus('loading')
@@ -388,12 +409,47 @@ export default function App() {
       .then((res) => { if (active) setWatchlist(Array.isArray(res.data) ? res.data : []) })
       .catch(() => {})
 
-    api.get(`${API_ROOT}/conversations/`, authHeaders)
-      .then((res) => { if (active) setConversations(Array.isArray(res.data) ? res.data : []) })
-      .catch(() => {})
+    if (active) reloadConversations()
 
     return () => { active = false }
-  }, [token, authHeaders, loadProfile])
+  }, [token, authHeaders, loadProfile, reloadConversations])
+
+  // Background poll (the backend ships no Channels/WebSocket layer, so this is
+  // the existing "suitable polling" mechanism). It keeps the support inbox and
+  // client threads in sync and drives the unread notifications below.
+  useEffect(() => {
+    if (!token) return undefined
+    const timer = setInterval(() => { reloadConversations() }, 15000)
+    return () => clearInterval(timer)
+  }, [token, reloadConversations])
+
+  // Admin-visible (and client-visible) new-message notification. The unread
+  // counts come from the backend, which persists them with the message, so a
+  // notification can never exist without the underlying message. The first
+  // load after sign-in seeds the baseline silently; only counts that grow
+  // afterwards raise a toast.
+  useEffect(() => {
+    if (!token) {
+      unreadSeenRef.current = 0
+      unreadSeededRef.current = false
+      return
+    }
+    const total = conversations.reduce(
+      (sum, convo) => sum + Number(convo.unread_count || 0),
+      0
+    )
+    if (!unreadSeededRef.current) {
+      unreadSeededRef.current = true
+    } else if (total > unreadSeenRef.current) {
+      const isAdminConsole = isAdminView(view)
+      showToast(
+        isAdminConsole
+          ? `New client message${total - unreadSeenRef.current === 1 ? '' : 's'} in the support inbox.`
+          : 'New message from VELTRIX Support.'
+      )
+    }
+    unreadSeenRef.current = total
+  }, [conversations, token, view, showToast])
 
   const handleAuth = async (event) => {
     event.preventDefault()
@@ -535,23 +591,30 @@ export default function App() {
     return res.data
   }
 
-  // Top up funds on /api/portfolio/topup/
+  // Demo (simulated) top-up. The backend enforces the restriction with
+  // FUNDING_DEMO_TOPUP_ENABLED (403 unless explicitly enabled outside
+  // production); this client-side check only avoids presenting a dead entry
+  // point. The credit is never described as a real deposit.
   const handleTopUp = async (amount) => {
-    if (!token) {
-      navigate('login')
-      showToast('Please sign in to deposit funds.')
+    if (!demoTopUpEnabled()) {
+      showToast('Demo funding is disabled in this build.')
       return
     }
 
-    const res = await api.post(
+    if (!token) {
+      navigate('login')
+      showToast('Please sign in to add demo funds.')
+      return
+    }
+
+    await api.post(
       `${API_ROOT}/portfolio/topup/`,
       { amount: String(amount) },
       authHeaders
     )
 
     await reloadDashboard()
-    showToast(res.data.detail || `Successfully topped up $${amount} USD`)
-    return res.data
+    showToast(`Demo funding: simulated balance increased by $${amount}. No real money was deposited.`)
   }
 
   // Toggle watchlist item on /api/watchlist/
@@ -658,38 +721,64 @@ export default function App() {
   }
 
   // Send message to conversation /api/conversations/<id>/messages/
+  //
+  // Success is confirmed only after the server returns the persisted message;
+  // a failed request throws so callers can show a precise error instead of a
+  // false "sent" confirmation. On success the thread is re-synced from the
+  // server so the sender sees exactly what was stored.
   const handleSendMessage = async (conversationId, content) => {
     if (!token) {
       navigate('login')
       showToast('Please sign in to send messages.')
-      return null
+      const authError = new Error('Not signed in')
+      authError.unauthorized = true
+      throw authError
     }
-    try {
-      const res = await api.post(
-        `${API_ROOT}/conversations/${conversationId}/messages/`,
-        { content },
-        authHeaders
-      )
-      setConversations((prev) =>
-        prev.map((c) => {
-          if (c.id === conversationId) {
-            const existingMessages = c.messages || []
-            return {
-              ...c,
-              messages: [...existingMessages, res.data],
-              last_message: res.data,
-            }
+    const res = await api.post(
+      `${API_ROOT}/conversations/${conversationId}/messages/`,
+      { content },
+      authHeaders
+    )
+    // The server echoes the stored message with its conversation id and sender
+    // identity; require those fields so a malformed response is treated as a
+    // failure rather than a success.
+    if (!res?.data || String(res.data.conversation) !== String(conversationId)) {
+      throw new Error('The server did not confirm the message.')
+    }
+    setConversations((prev) =>
+      prev.map((c) => {
+        if (c.id === conversationId) {
+          const existingMessages = c.messages || []
+          const withoutDuplicate = existingMessages.filter((m) => m.id !== res.data.id)
+          return {
+            ...c,
+            messages: [...withoutDuplicate, res.data],
+            last_message: res.data,
           }
-          return c
-        })
-      )
-      return res.data
-    } catch (error) {
-      console.error('Send message failed', error)
-      showToast('Could not send message.')
-      return null
-    }
+        }
+        return c
+      })
+    )
+    // Refresh in the background so unread counts and other conversations stay
+    // accurate; the local append above keeps the UI immediate.
+    reloadConversations()
+    return res.data
   }
+
+  // Mark a conversation's incoming messages read on
+  // /api/conversations/<id>/mark-read/, so the unread notification clears once
+  // the user (admin or client) has actually opened the thread.
+  const handleMarkRead = useCallback(async (conversationId) => {
+    if (!token || conversationId === undefined || conversationId === null) return
+    try {
+      await api.post(`${API_ROOT}/conversations/${conversationId}/mark-read/`, {}, authHeaders)
+      setConversations((prev) =>
+        prev.map((c) => (c.id === conversationId ? { ...c, unread_count: 0 } : c))
+      )
+    } catch (e) {
+      // Non-fatal: the unread badge simply stays until the next successful call.
+    }
+  }, [token, authHeaders])
 
   // Resolve conversation on /api/conversations/<id>/resolve/
   const handleResolveConversation = async (conversationId) => {
@@ -728,6 +817,10 @@ export default function App() {
   }
 
   const openTopUpModal = () => {
+    if (!demoTopUpEnabled()) {
+      showToast('Demo funding is disabled in this build.')
+      return
+    }
     if (!token) {
       navigate('login')
       showToast('Please sign in to manage funds.')
@@ -764,6 +857,7 @@ export default function App() {
     onCreateTicket: handleCreateTicket,
     onCreateConversation: handleCreateConversation,
     onSendMessage: handleSendMessage,
+    onMarkRead: handleMarkRead,
     onResolveConversation: handleResolveConversation,
     onReopenConversation: handleReopenConversation,
     onOpenLiveChat: () => setLiveChatOpen(true),
@@ -896,12 +990,14 @@ export default function App() {
         cashBalance={cashBalance}
       />
 
-      <TopUpModal
-        isOpen={topUpModalOpen}
-        onClose={() => setTopUpModalOpen(false)}
-        onTopUp={handleTopUp}
-        currentBalance={cashBalance}
-      />
+      {demoTopUpEnabled() && (
+        <TopUpModal
+          isOpen={topUpModalOpen}
+          onClose={() => setTopUpModalOpen(false)}
+          onTopUp={handleTopUp}
+          currentBalance={cashBalance}
+        />
+      )}
     </>
   )
 }

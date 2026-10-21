@@ -1,21 +1,27 @@
-import React, { useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import AppSidebar from './AppSidebar'
 import DataTable from './DataTable'
 import { MarketTable, MarketRowsTable } from './MarketTable'
 import ProfileView from './ProfileView'
-import { formatCurrency, formatPrice } from '../data'
+import { formatCurrency, formatPrice, transactionReferenceLabel, transactionSideLabel, transactionStatusLabel } from '../data'
+import { demoTopUpEnabled } from '../flags'
 
-function Shell({ view, title, subtitle, admin, onNavigate, onLogout, children }) {
+function Shell({ view, title, subtitle, admin, onNavigate, onLogout, ctx, children }) {
+  // Surface the client's total unread support messages on the sidebar so a
+  // reply that arrives while the client is on another view is still noticed.
+  const unreadCount = (ctx?.conversations || []).reduce(
+    (sum, c) => sum + Number(c.unread_count || 0),
+    0
+  )
   return (
     <div className="app-shell">
-      <AppSidebar active={view} admin={admin} onNavigate={onNavigate} onLogout={onLogout} />
+      <AppSidebar active={view} admin={admin} onNavigate={onNavigate} onLogout={onLogout} unreadCount={unreadCount} />
       <section className="app-main">
         <div className="app-topline">
           <div>
             <h1>{title}</h1>
             <p>{subtitle}</p>
           </div>
-          <span className="demo-chip">● DEMO MODE</span>
         </div>
         {children}
       </section>
@@ -26,7 +32,7 @@ function Shell({ view, title, subtitle, admin, onNavigate, onLogout, children })
 function Allocation() {
   return (
     <div className="allocation">
-      <div className="donut" />
+      <div className="donut" aria-hidden="true" />
       <div className="legend">
         <span>Crypto · 42%</span>
         <span>Indices · 26%</span>
@@ -93,14 +99,16 @@ function Overview({ ctx }) {
           <span className="stat-label">AVAILABLE CASH BALANCE</span>
           <div className="stat-value">{formatCurrency(cash)}</div>
           <div style={{ marginTop: 4 }}>
-            <button
-              type="button"
-              className="text-link"
-              style={{ background: 'none', border: 0, cursor: 'pointer', padding: 0 }}
-              onClick={onOpenTopUp}
-            >
-              + Deposit Funds ↗
-            </button>
+            {demoTopUpEnabled() && (
+              <button
+                type="button"
+                className="text-link"
+                style={{ background: 'none', border: 0, cursor: 'pointer', padding: 0 }}
+                onClick={onOpenTopUp}
+              >
+                + Demo Funds (simulated) ↗
+              </button>
+            )}
           </div>
         </div>
 
@@ -197,9 +205,11 @@ function Portfolio({ ctx }) {
             <button className="btn btn-primary" style={{ marginRight: 8, padding: '7px 14px' }} onClick={() => onOpenTrade('AAPL')}>
               Execute Trade ↗
             </button>
-            <button className="btn btn-outline" style={{ padding: '7px 14px' }} onClick={onOpenTopUp}>
-              + Deposit Funds
-            </button>
+            {demoTopUpEnabled() && (
+              <button className="btn btn-outline" style={{ padding: '7px 14px' }} onClick={onOpenTopUp}>
+                + Demo Funds
+              </button>
+            )}
           </div>
           <Allocation />
         </div>
@@ -278,9 +288,11 @@ function Accounts({ ctx }) {
           <div className="stat-value">{formatCurrency(cash)}</div>
           <span className="status">Active Account</span>
           <div style={{ marginTop: 16 }}>
-            <button className="btn btn-primary" onClick={onOpenTopUp}>
-              + Deposit Funds ↗
-            </button>
+            {demoTopUpEnabled() && (
+              <button className="btn btn-primary" onClick={onOpenTopUp}>
+                + Demo Funds (simulated) ↗
+              </button>
+            )}
           </div>
         </div>
 
@@ -301,7 +313,7 @@ function Accounts({ ctx }) {
 
 function Money({ view, ctx }) {
   const { dashboard, onNavigate, onOpenTopUp } = ctx
-  const titles = { wallet: 'Wallet & Settlement', deposits: 'Deposit Funds', withdrawals: 'Withdrawal Portal' }
+  const titles = { wallet: 'Wallet & Settlement', deposits: 'Deposits', withdrawals: 'Withdrawal Portal' }
   const cash = dashboard?.account?.cash_balance !== undefined
     ? Number(dashboard.account.cash_balance)
     : 0.0
@@ -309,7 +321,8 @@ function Money({ view, ctx }) {
   return (
     <>
       <div className="admin-warn">
-        Multi-currency wallet and cash settlement accounts. Client funds are kept in segregated tier-1 accounts.
+        Account balances and recorded activity. Balances shown are simulated demo values — real-money
+        deposits are not available yet.
       </div>
       <div className="stat-grid">
         <div className="app-card">
@@ -324,16 +337,18 @@ function Money({ view, ctx }) {
         </div>
       </div>
       <div className="app-card">
-        <h3>{view === 'withdrawals' ? 'Withdrawal Portal' : view === 'deposits' ? 'Deposit Trading Funds' : 'Wallet Balances'}</h3>
+        <h3>{view === 'withdrawals' ? 'Withdrawal Portal' : view === 'deposits' ? 'Deposits' : 'Wallet Balances'}</h3>
         <p className="muted-copy">
           {view === 'deposits'
-            ? 'Fund your account via wire transfer, SEPA, card, or instant settlement.'
-            : 'Manage multi-currency balances, client deposits, and settlement accounts.'}
+            ? 'Real-money deposits are not available yet. Demo funding is simulated and disabled in production.'
+            : 'Review your simulated balances and recorded transaction history.'}
         </p>
         <div className="app-actions">
-          <button className="btn btn-primary" onClick={onOpenTopUp}>
-            + Deposit Funds ↗
-          </button>
+          {demoTopUpEnabled() && (
+            <button className="btn btn-primary" onClick={onOpenTopUp}>
+              + Demo Funds (simulated) ↗
+            </button>
+          )}
           <button className="btn btn-outline" data-view="transactions" onClick={() => onNavigate('transactions')}>
             View Settlement Ledger
           </button>
@@ -347,17 +362,18 @@ function Transactions({ ctx }) {
   const { dashboard } = ctx
   const rawTx = dashboard?.transactions || []
   const rows = rawTx.map((tx) => [
-    <b key={`side-${tx.id}`} style={{ textTransform: 'uppercase', color: tx.side === 'buy' ? 'var(--green)' : 'var(--gold)' }}>{tx.side}</b>,
-    tx.symbol || 'USD Deposit',
+    <b key={`side-${tx.id}`} style={{ textTransform: 'uppercase', color: tx.side === 'buy' ? 'var(--green)' : 'var(--gold)' }}>{transactionSideLabel(tx)}</b>,
+    transactionReferenceLabel(tx),
     new Date(tx.created_at || Date.now()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
     formatCurrency(tx.amount),
-    <span className="status" key={`st-${tx.id}`}>{tx.status}</span>,
+    <span className="status" key={`st-${tx.id}`}>{transactionStatusLabel(tx)}</span>,
   ])
 
   return (
     <>
       <div className="admin-warn">
-        Official trade confirmations and ledger records. Each transaction is settled atomically and immutably recorded.
+        Recorded activity for your account. Every entry currently shown is a simulated demo record — no
+        real funds move.
       </div>
       <div className="app-card">
         {rows.length ? (
@@ -365,7 +381,7 @@ function Transactions({ ctx }) {
         ) : (
           <div className="empty-state">
             <div className="empty-icon">◈</div>
-            <p>No transactions yet. Your ledger will populate once you deposit funds or execute a trade.</p>
+            <p>No transactions yet. Your history will populate once you execute a simulated trade.</p>
           </div>
         )}
         <div className="mobile-note">Swipe horizontally to view all columns.</div>
@@ -449,6 +465,7 @@ function Support({ ctx }) {
     onCreateTicket,
     onCreateConversation,
     onSendMessage,
+    onMarkRead,
   } = ctx
 
   const [activeTab, setActiveTab] = useState('conversations')
@@ -456,6 +473,7 @@ function Support({ ctx }) {
   const [chatInput, setChatInput] = useState('')
   const [subject, setSubject] = useState('')
   const [message, setMessage] = useState('')
+  const markedReadRef = useRef(null)
 
   if (!token) {
     return (
@@ -497,14 +515,46 @@ function Support({ ctx }) {
     }
   }
 
+  const [sending, setSending] = useState(false)
+  const [sendError, setSendError] = useState('')
+  const sendingRef = useRef(false)
+
   const handleSendChat = async (e) => {
     e.preventDefault()
+    // Ref guard blocks a duplicate submit from a rapid double-click before the
+    // disabled state has had a chance to re-render.
+    if (sendingRef.current) return
     if (!chatInput.trim() || !selectedConvoId || !onSendMessage) return
-    await onSendMessage(selectedConvoId, chatInput.trim())
-    setChatInput('')
+    sendingRef.current = true
+    setSending(true)
+    setSendError('')
+    try {
+      // Only clear the draft after the server confirms the message was stored.
+      await onSendMessage(selectedConvoId, chatInput.trim())
+      setChatInput('')
+    } catch (error) {
+      setSendError(
+        error?.response?.data?.detail
+        || error?.response?.data?.content?.[0]
+        || 'Could not send message. Please try again.'
+      )
+    } finally {
+      sendingRef.current = false
+      setSending(false)
+    }
   }
 
   const activeConvo = conversations.find((c) => c.id === selectedConvoId) || conversations[0]
+
+  // Opening/reading a conversation clears its unread notification. Runs once
+  // per thread per unread burst, not on every poll.
+  useEffect(() => {
+    if (!onMarkRead || !activeConvo) return
+    if (Number(activeConvo.unread_count || 0) === 0) return
+    if (markedReadRef.current === activeConvo.id) return
+    markedReadRef.current = activeConvo.id
+    onMarkRead(activeConvo.id)
+  }, [activeConvo, onMarkRead])
 
   const clientName = profile?.first_name
     ? `${profile.first_name} ${profile.last_name || ''}`.trim()
@@ -589,9 +639,16 @@ function Support({ ctx }) {
                       background: c.id === (activeConvo?.id) ? '#163326' : '#101e17',
                     }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, fontWeight: 700 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, fontWeight: 700, gap: 8 }}>
                       <span>{c.subject}</span>
-                      <span className="status">{c.is_active ? 'Active' : 'Resolved'}</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {Number(c.unread_count || 0) > 0 && (
+                          <span className="status pending" style={{ fontWeight: 800 }}>
+                            {c.unread_count} new
+                          </span>
+                        )}
+                        <span className="status">{c.is_active ? 'Active' : 'Resolved'}</span>
+                      </span>
                     </div>
                     {c.last_message && (
                       <p style={{ margin: '4px 0 0', fontSize: 10, color: '#8ca094' }}>
@@ -656,9 +713,17 @@ function Support({ ctx }) {
                       placeholder="Type a message…"
                       value={chatInput}
                       onChange={(e) => setChatInput(e.target.value)}
+                      disabled={sending}
                     />
-                    <button className="btn btn-primary" type="submit">Send</button>
+                    <button className="btn btn-primary" type="submit" disabled={sending}>
+                      {sending ? 'Sending…' : 'Send'}
+                    </button>
                   </form>
+                )}
+                {sendError && (
+                  <p style={{ color: 'var(--red, #ed8d8d)', fontSize: 10, marginTop: 6 }} role="alert">
+                    {sendError}
+                  </p>
                 )}
               </>
             ) : (
@@ -757,6 +822,7 @@ export default function AppViews({ view, ctx }) {
         subtitle="Overview of your portfolio, active positions, and market movements."
         onNavigate={ctx.onNavigate}
         onLogout={ctx.onLogout}
+        ctx={ctx}
       >
         <Overview ctx={ctx} />
       </Shell>
@@ -770,6 +836,7 @@ export default function AppViews({ view, ctx }) {
         subtitle="Explore tradable equities, digital assets, commodities, and currencies."
         onNavigate={ctx.onNavigate}
         onLogout={ctx.onLogout}
+        ctx={ctx}
       >
         {ctx.marketLoading ? (
           <div className="app-card"><div className="muted-copy">Loading global market feeds…</div></div>
@@ -793,6 +860,7 @@ export default function AppViews({ view, ctx }) {
         subtitle="Real-time holdings, asset allocation, and performance analytics."
         onNavigate={ctx.onNavigate}
         onLogout={ctx.onLogout}
+        ctx={ctx}
       >
         <Portfolio ctx={ctx} />
       </Shell>
@@ -806,6 +874,7 @@ export default function AppViews({ view, ctx }) {
         subtitle="Manage your brokerage accounts and trading profiles."
         onNavigate={ctx.onNavigate}
         onLogout={ctx.onLogout}
+        ctx={ctx}
       >
         <Accounts ctx={ctx} />
       </Shell>
@@ -813,11 +882,11 @@ export default function AppViews({ view, ctx }) {
   }
   if (view === 'wallet' || view === 'deposits' || view === 'withdrawals') {
     const titles = {
-      wallet: ['Wallet & Settlement', 'Multi-currency cash balances and funding tools.'],
-      deposits: ['Deposit Funds', 'Deposit capital for active market trading.'],
-      withdrawals: ['Withdrawals Portal', 'Request capital withdrawals to verified settlement accounts.'],
+      wallet: ['Wallet & Settlement', 'Simulated balances and recorded transaction history.'],
+      deposits: ['Deposits', 'Real-money deposits are not available yet.'],
+      withdrawals: ['Withdrawals Portal', 'Withdrawals are not available yet.'],
     }[view]
-    return <Shell view={view} title={titles[0]} subtitle={titles[1]} onNavigate={ctx.onNavigate} onLogout={ctx.onLogout}><Money view={view} ctx={ctx} /></Shell>
+    return <Shell view={view} title={titles[0]} subtitle={titles[1]} onNavigate={ctx.onNavigate} onLogout={ctx.onLogout} ctx={ctx}><Money view={view} ctx={ctx} /></Shell>
   }
   if (view === 'transactions') {
     return (
@@ -827,6 +896,7 @@ export default function AppViews({ view, ctx }) {
         subtitle="Audited transaction history and trade execution statements."
         onNavigate={ctx.onNavigate}
         onLogout={ctx.onLogout}
+        ctx={ctx}
       >
         <Transactions ctx={ctx} />
       </Shell>
@@ -840,6 +910,7 @@ export default function AppViews({ view, ctx }) {
         subtitle="Regulatory compliance and account verification status."
         onNavigate={ctx.onNavigate}
         onLogout={ctx.onLogout}
+        ctx={ctx}
       >
         <Kyc ctx={ctx} />
       </Shell>
@@ -853,6 +924,7 @@ export default function AppViews({ view, ctx }) {
         subtitle="Direct communication with institutional support specialists."
         onNavigate={ctx.onNavigate}
         onLogout={ctx.onLogout}
+        ctx={ctx}
       >
         <Support ctx={ctx} />
       </Shell>
@@ -866,6 +938,7 @@ export default function AppViews({ view, ctx }) {
         subtitle="Security, notifications, and client profile preferences."
         onNavigate={ctx.onNavigate}
         onLogout={ctx.onLogout}
+        ctx={ctx}
       >
         <Settings ctx={ctx} />
       </Shell>
@@ -879,6 +952,7 @@ export default function AppViews({ view, ctx }) {
         subtitle="Review your account record and update your personal details."
         onNavigate={ctx.onNavigate}
         onLogout={ctx.onLogout}
+        ctx={ctx}
       >
         <ProfileView ctx={ctx} />
       </Shell>

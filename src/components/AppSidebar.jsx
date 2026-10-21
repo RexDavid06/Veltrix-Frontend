@@ -1,8 +1,16 @@
 import React from 'react'
 import { ADMIN_ITEMS, NAV_ITEMS } from '../data'
+import { demoTopUpEnabled } from '../flags'
 
-export default function AppSidebar({ active, admin = false, onNavigate, onLogout }) {
-  const items = admin ? ADMIN_ITEMS : NAV_ITEMS
+export default function AppSidebar({ active, admin = false, onNavigate, onLogout, unreadCount = 0 }) {
+  // "Deposits" is the demo top-up surface; it is hidden unless simulated funding
+  // is explicitly enabled (never the case in a production build).
+  const items = admin
+    ? ADMIN_ITEMS
+    : NAV_ITEMS.filter(([, view]) => view !== 'deposits' || demoTopUpEnabled())
+  // The support inbox is where unread messages are surfaced; badge only that
+  // entry so the count maps to a single, predictable destination.
+  const supportView = admin ? 'admin-support' : 'portal-support'
   let lastGroup = ''
 
   return (
@@ -22,6 +30,15 @@ export default function AppSidebar({ active, admin = false, onNavigate, onLogout
               onClick={() => onNavigate(view)}
             >
               <span className="nav-icon">{icon}</span>{label}
+              {view === supportView && Number(unreadCount) > 0 && (
+                <span
+                  className="status pending"
+                  data-unread-badge={unreadCount}
+                  style={{ marginLeft: 'auto', fontWeight: 800 }}
+                >
+                  {unreadCount}
+                </span>
+              )}
             </button>
           </React.Fragment>
         )

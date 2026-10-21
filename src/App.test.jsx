@@ -199,3 +199,131 @@ describe('role-aware routing', () => {
     expect(requested.some((url) => url.includes('/dashboard/'))).toBe(true)
   })
 })
+
+describe('client workspace demo labels', () => {
+  it('does not show a DEMO mode tag to signed-in clients', async () => {
+    sessionProfile = CLIENT
+    signIn()
+    visit('/dashboard')
+    await mount()
+
+    // The client Shell previously rendered a "● DEMO MODE" chip and the
+    // allocation donut labelled itself "DEMO"; neither must reach clients.
+    expect(container.textContent).not.toContain('DEMO MODE')
+    expect(container.querySelector('.demo-chip')).toBeNull()
+  })
+})
+
+describe('support unread notifications', () => {
+  it('surfaces unread client messages from polls without a manual reload', async () => {
+    sessionProfile = CLIENT
+    signIn()
+    visit('/dashboard')
+
+    let unread = []
+    api.defaults.adapter = async (config) => {
+      const url = String(config.url || '')
+      requested.push(url)
+      if (url.includes('/profile/')) return ok(sessionProfile)
+      if (url.includes('/dashboard/')) return ok({ account: { cash_balance: '1500.00' }, positions: [] })
+      if (url.includes('/support/')) return ok([])
+      if (url.includes('/watchlist/')) return ok([])
+      if (url.includes('/conversations/')) return ok(unread)
+      return ok({})
+    }
+
+    await mount()
+    expect(container.textContent).not.toContain('New message from VELTRIX Support.')
+
+    // Simulate an admin reply arriving between polls.
+    unread = [{
+      id: 5,
+      subject: 'Deposit',
+      is_active: true,
+      unread_count: 1,
+      messages: [{ id: 50, content: 'Your deposit cleared.', sender: { id: 1, role: 'admin' }, sender_id: 1 }],
+    }]
+
+    await act(async () => {
+      await new Promise((resolve) => { setTimeout(resolve, 15000) })
+    })
+    await flush()
+
+    expect(container.textContent).toContain('New message from VELTRIX Support.')
+  })
+})
+
+describe('demo funding entry points', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  // Re-imports the app with the explicit Vite switch set, mirroring the
+  // existing stub-before-import pattern used for VITE_API_URL.
+  async function mountWithDemoTopUp(enabled) {
+    vi.resetModules()
+    vi.stubEnv('VITE_DEMO_TOPUP_ENABLED', enabled ? '1' : '')
+    sessionProfile = CLIENT
+    api = (await import('./api.js')).default
+    installAdapter()
+    App = (await import('./App.jsx')).default
+    await mount()
+  }
+
+  it('hides every demo top-up entry point when the switch is off', async () => {
+    signIn()
+    visit('/dashboard')
+    await mountWithDemoTopUp(false)
+
+    // Navigation surface (Deposits) and every dashboard/portfolio/wallet CTA.
+    expect(container.querySelector('[data-view="deposits"]')).toBeNull()
+    expect(container.textContent).not.toContain('+ Demo Funds')
+    expect(container.textContent).not.toContain('Deposit Trading Funds')
+    expect(container.textContent).not.toContain('Deposit Funds')
+  })
+
+  it('shows the demo surfaces only when explicitly enabled', async () => {
+    signIn()
+    visit('/dashboard')
+    await mountWithDemoTopUp(true)
+
+    expect(container.querySelector('[data-view="deposits"]')).toBeTruthy()
+    expect(container.textContent).toContain('+ Demo Funds (simulated)')
+
+    const entry = Array.from(container.querySelectorAll('button'))
+      .find((button) => button.textContent.includes('+ Demo Funds'))
+    expect(entry).toBeTruthy()
+    await act(async () => {
+      entry.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }))
+    })
+    await flush()
+
+    expect(container.textContent).toContain('Add Demo Funds (Simulated)')
+  })
+
+  it('reports a demo credit as simulated, never as real money', async () => {
+    signIn()
+    visit('/dashboard')
+    await mountWithDemoTopUp(true)
+
+    const entry = Array.from(container.querySelectorAll('button'))
+      .find((button) => button.textContent.includes('+ Demo Funds'))
+    await act(async () => {
+      entry.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }))
+    })
+    await flush()
+
+    // The support panel also renders a form; target the funding modal's form.
+    const form = Array.from(container.querySelectorAll('form'))
+      .find((node) => node.textContent.includes('Demo Amount'))
+    expect(form).toBeTruthy()
+    await act(async () => {
+      form.dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true }))
+    })
+    await flush()
+    await flush()
+
+    expect(container.textContent).toContain('No real money was deposited')
+    expect(container.textContent).not.toContain('Successfully topped up')
+  })
+})
