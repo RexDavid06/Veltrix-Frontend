@@ -125,3 +125,13 @@ export function resolveAdminAccess({ hasToken, profile, profileStatus } = {}) {
   if (profileStatus === 'error') return 'error'
   return 'loading'
 }
+
+/** Real deposit actions are available only to an authenticated client. */
+export function resolveDepositAccess({ hasToken, profile, profileStatus } = {}) {
+  if (!hasToken) return 'login'
+  if (profile && typeof profile === 'object') {
+    return profile.role === 'client' && !isAdminIdentity(profile) ? 'allowed' : 'denied'
+  }
+  if (profileStatus === 'error') return 'error'
+  return 'loading'
+}

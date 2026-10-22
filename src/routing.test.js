@@ -13,6 +13,7 @@ import {
   isProtectedView,
   pathFor,
   resolveAdminAccess,
+  resolveDepositAccess,
   viewForPath,
 } from './routing.js'
 
@@ -116,5 +117,20 @@ describe('resolveAdminAccess', () => {
   it('allows administrators', () => {
     expect(resolveAdminAccess({ hasToken: true, profile: ADMIN_PROFILE, profileStatus: 'ready' })).toBe('allowed')
     expect(resolveAdminAccess({ hasToken: true, profile: STAFF_PROFILE, profileStatus: 'ready' })).toBe('allowed')
+  })
+})
+
+describe('resolveDepositAccess', () => {
+  it('requires a signed-in client and a confirmed non-admin profile', () => {
+    expect(resolveDepositAccess({ hasToken: false, profile: null, profileStatus: 'idle' })).toBe('login')
+    expect(resolveDepositAccess({ hasToken: true, profile: null, profileStatus: 'loading' })).toBe('loading')
+    expect(resolveDepositAccess({ hasToken: true, profile: null, profileStatus: 'error' })).toBe('error')
+    expect(resolveDepositAccess({ hasToken: true, profile: CLIENT_PROFILE, profileStatus: 'ready' })).toBe('allowed')
+  })
+
+  it('denies staff identities, including staff with a client role', () => {
+    expect(resolveDepositAccess({ hasToken: true, profile: ADMIN_PROFILE, profileStatus: 'ready' })).toBe('denied')
+    expect(resolveDepositAccess({ hasToken: true, profile: STAFF_PROFILE, profileStatus: 'ready' })).toBe('denied')
+    expect(resolveDepositAccess({ hasToken: true, profile: { role: 'operator' }, profileStatus: 'ready' })).toBe('denied')
   })
 })

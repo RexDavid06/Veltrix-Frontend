@@ -21,6 +21,7 @@ import {
   isProtectedView,
   pathFor,
   resolveAdminAccess,
+  resolveDepositAccess,
   viewForPath,
 } from './routing'
 import {
@@ -918,7 +919,18 @@ export default function App() {
       appContent = <AdminViews view={effectiveView} ctx={ctx} onNavigate={navigate} showToast={showToast} />
     }
   } else if (APP_VIEWS.includes(effectiveView)) {
-    appContent = token ? (
+    if (effectiveView === 'deposits' && token) {
+      const depositAccess = resolveDepositAccess({ hasToken: true, profile, profileStatus })
+      if (depositAccess === 'loading') {
+        appContent = <div className="section-wrap"><div className="form-card"><p role="status">Verifying client account access…</p></div></div>
+      } else if (depositAccess === 'error') {
+        appContent = <div className="section-wrap"><div className="form-card"><div className="error-banner" role="alert">We could not confirm your account access.</div><button className="btn btn-outline" onClick={loadProfile} type="button">Retry ↻</button></div></div>
+      } else if (depositAccess === 'denied') {
+        appContent = <div className="section-wrap"><div className="form-card"><div className="eyebrow"><span className="eyebrow-line" /> RESTRICTED AREA</div><h2>Deposits unavailable</h2><p>Deposit services are available from client accounts.</p><button className="btn btn-primary" type="button" onClick={() => navigate('admin')}>Back to administration <span>↗</span></button></div></div>
+      } else {
+        appContent = <AppViews view={effectiveView} ctx={ctx} />
+      }
+    } else appContent = token ? (
       <AppViews view={effectiveView} ctx={ctx} />
     ) : (
       // Never render the workspace to an anonymous visitor.

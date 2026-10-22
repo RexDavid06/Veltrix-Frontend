@@ -275,11 +275,37 @@ describe('demo funding entry points', () => {
     visit('/dashboard')
     await mountWithDemoTopUp(false)
 
-    // Navigation surface (Deposits) and every dashboard/portfolio/wallet CTA.
-    expect(container.querySelector('[data-view="deposits"]')).toBeNull()
+    // Real deposits remain reachable; the simulated funding entry points stay gated.
+    expect(container.querySelector('[data-view="deposits"]')).toBeTruthy()
     expect(container.textContent).not.toContain('+ Demo Funds')
     expect(container.textContent).not.toContain('Deposit Trading Funds')
     expect(container.textContent).not.toContain('Deposit Funds')
+  })
+
+  it('opens the real deposits panel from client navigation with demo top-ups off', async () => {
+    signIn()
+    visit('/dashboard')
+    await mountWithDemoTopUp(false)
+
+    await act(async () => {
+      container.querySelector('[data-view="deposits"]').click()
+    })
+    await flush()
+
+    expect(container.textContent).toContain('Deposit USDT on TRON')
+    expect(container.textContent).toContain('Deposit history')
+    expect(container.textContent).not.toContain('Add Demo Funds (Simulated)')
+  })
+
+  it('blocks administrator accounts from opening client deposit actions', async () => {
+    sessionProfile = ADMIN
+    signIn()
+    visit('/deposits')
+    await mount()
+
+    expect(container.textContent).toContain('Deposits unavailable')
+    expect(container.textContent).not.toContain('Get payment address')
+    expect(requested.some((url) => url.includes('/deposits/'))).toBe(false)
   })
 
   it('shows the demo surfaces only when explicitly enabled', async () => {

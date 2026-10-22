@@ -3,6 +3,7 @@ import AppSidebar from './AppSidebar'
 import DataTable from './DataTable'
 import { MarketTable, MarketRowsTable } from './MarketTable'
 import ProfileView from './ProfileView'
+import DepositPanel from './DepositPanel'
 import { formatCurrency, formatPrice, transactionReferenceLabel, transactionSideLabel, transactionStatusLabel } from '../data'
 import { demoTopUpEnabled } from '../flags'
 
@@ -313,6 +314,7 @@ function Accounts({ ctx }) {
 
 function Money({ view, ctx }) {
   const { dashboard, onNavigate, onOpenTopUp } = ctx
+  if (view === 'deposits') return <DepositPanel />
   const titles = { wallet: 'Wallet & Settlement', deposits: 'Deposits', withdrawals: 'Withdrawal Portal' }
   const cash = dashboard?.account?.cash_balance !== undefined
     ? Number(dashboard.account.cash_balance)
@@ -883,7 +885,7 @@ export default function AppViews({ view, ctx }) {
   if (view === 'wallet' || view === 'deposits' || view === 'withdrawals') {
     const titles = {
       wallet: ['Wallet & Settlement', 'Simulated balances and recorded transaction history.'],
-      deposits: ['Deposits', 'Real-money deposits are not available yet.'],
+      deposits: ['Deposits', 'Create and track USDT TRC20 payment requests.'],
       withdrawals: ['Withdrawals Portal', 'Withdrawals are not available yet.'],
     }[view]
     return <Shell view={view} title={titles[0]} subtitle={titles[1]} onNavigate={ctx.onNavigate} onLogout={ctx.onLogout} ctx={ctx}><Money view={view} ctx={ctx} /></Shell>

@@ -1,13 +1,10 @@
 import React from 'react'
 import { ADMIN_ITEMS, NAV_ITEMS } from '../data'
-import { demoTopUpEnabled } from '../flags'
 
 export default function AppSidebar({ active, admin = false, onNavigate, onLogout, unreadCount = 0 }) {
-  // "Deposits" is the demo top-up surface; it is hidden unless simulated funding
-  // is explicitly enabled (never the case in a production build).
-  const items = admin
-    ? ADMIN_ITEMS
-    : NAV_ITEMS.filter(([, view]) => view !== 'deposits' || demoTopUpEnabled())
+  // Real deposits have their own client panel; demo top-ups remain gated in
+  // the workspace actions and do not control whether this page is reachable.
+  const items = admin ? ADMIN_ITEMS : NAV_ITEMS
   // The support inbox is where unread messages are surfaced; badge only that
   // entry so the count maps to a single, predictable destination.
   const supportView = admin ? 'admin-support' : 'portal-support'
