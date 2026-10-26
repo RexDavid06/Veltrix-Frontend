@@ -26,6 +26,7 @@ export const ADMIN_ITEMS = [
   ['Customers', 'admin-customers', '♙', 'OPERATIONS'],
   ['Verification', 'admin-kyc', '✓', 'OPERATIONS'],
   ['Transactions', 'admin-transactions', '≡', 'OPERATIONS'],
+  ['Deposits', 'admin-deposits', '⇲', 'OPERATIONS'],
   ['Support inbox', 'admin-support', '✳', 'OPERATIONS'],
   ['Instruments', 'admin-instruments', '◫', 'SYSTEM'],
   ['Audit logs', 'admin-audit', '◷', 'SYSTEM'],

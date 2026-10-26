@@ -94,3 +94,67 @@ export async function fetchAdminAudit(params = {}) {
   const res = await api.get(`${ADMIN_ROOT}/audit/`, { params: cleanParams(params) })
   return unwrapList(res.data)
 }
+
+export async function fetchAdminDeposits(params = {}) {
+  const res = await api.get(`${ADMIN_ROOT}/deposits/`, { params: cleanParams(params) })
+  return unwrapList(res.data)
+}
+
+export async function fetchAdminDeposit(depositId) {
+  const res = await api.get(`${ADMIN_ROOT}/deposits/${depositId}/`)
+  return res.data
+}
+
+export async function fetchAdminChainTransfers(params = {}) {
+  const res = await api.get(`${ADMIN_ROOT}/chain-transfers/`, { params: cleanParams(params) })
+  return unwrapList(res.data)
+}
+
+export async function assignAdminChainTransfer(transferId, depositId, reason) {
+  const res = await api.post(`${ADMIN_ROOT}/chain-transfers/${transferId}/assign/`, {
+    deposit_id: depositId,
+    reason,
+  })
+  return res.data
+}
+
+export async function approveAdminChainTransfer(transferId, reason, allowAmountMismatch = false) {
+  const res = await api.post(`${ADMIN_ROOT}/chain-transfers/${transferId}/approve/`, {
+    reason,
+    allow_amount_mismatch: Boolean(allowAmountMismatch),
+  })
+  return res.data
+}
+
+export async function flagAdminChainTransfer(transferId, reason) {
+  const res = await api.post(`${ADMIN_ROOT}/chain-transfers/${transferId}/flag/`, { reason })
+  return res.data
+}
+
+export async function approveAdminBankDeposit(depositId, payload) {
+  const res = await api.post(`${ADMIN_ROOT}/bank-deposits/${depositId}/approve/`, payload)
+  return res.data
+}
+
+export async function rejectAdminBankDeposit(depositId, reason) {
+  const res = await api.post(`${ADMIN_ROOT}/bank-deposits/${depositId}/reject/`, { reason })
+  return res.data
+}
+
+export async function fetchAdminReconciliation() {
+  const res = await api.get(`${ADMIN_ROOT}/reconciliation/`)
+  return res.data
+}
+
+export async function runAdminReconciliation() {
+  const res = await api.post(`${ADMIN_ROOT}/reconciliation/`, {})
+  return res.data
+}
+
+export async function resolveAdminDiscrepancy(discrepancyId, resolution, ignore = false) {
+  const res = await api.post(
+    `${ADMIN_ROOT}/reconciliation/discrepancies/${discrepancyId}/resolve/`,
+    { resolution, ignore },
+  )
+  return res.data
+}

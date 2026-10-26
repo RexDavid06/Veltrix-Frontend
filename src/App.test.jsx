@@ -108,6 +108,7 @@ beforeEach(async () => {
 afterEach(() => {
   if (root) act(() => { root.unmount() })
   if (container && container.parentNode) container.parentNode.removeChild(container)
+  vi.useRealTimers()
   root = null
   container = null
 })
@@ -232,6 +233,9 @@ describe('support unread notifications', () => {
       return ok({})
     }
 
+    // Keep the real zero-delay timers used by flush(), but control the
+    // background polling interval so the test advances time deterministically.
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
     await mount()
     expect(container.textContent).not.toContain('New message from VELTRIX Support.')
 
@@ -245,7 +249,7 @@ describe('support unread notifications', () => {
     }]
 
     await act(async () => {
-      await new Promise((resolve) => { setTimeout(resolve, 15000) })
+      await vi.advanceTimersByTimeAsync(15000)
     })
     await flush()
 
@@ -292,7 +296,7 @@ describe('demo funding entry points', () => {
     })
     await flush()
 
-    expect(container.textContent).toContain('Deposit USDT on TRON')
+    expect(container.textContent).toContain('Deposit funds')
     expect(container.textContent).toContain('Deposit history')
     expect(container.textContent).not.toContain('Add Demo Funds (Simulated)')
   })

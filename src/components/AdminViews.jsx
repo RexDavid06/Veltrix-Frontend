@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
+import AdminDeposits from './AdminDeposits'
 import AppSidebar from './AppSidebar'
 import DataTable from './DataTable'
 import ProfileView from './ProfileView'
@@ -1349,6 +1350,21 @@ export default function AdminViews({ view, ctx = {}, onNavigate, showToast = () 
           Automated transaction monitoring active. Flagged transactions are placed in temporary compliance hold.
         </div>
         <TransactionsView />
+      </AdminShell>
+    )
+  }
+
+  if (view === 'admin-deposits') {
+    return (
+      <AdminShell
+        view={view}
+        title="Deposit Operations"
+        subtitle="Crypto transfer attribution, manual bank approvals, and reconciliation."
+        onNavigate={onNavigate}
+        onLogout={ctx.onLogout}
+        ctx={ctx}
+      >
+        <AdminDeposits showToast={showToast} />
       </AdminShell>
     )
   }

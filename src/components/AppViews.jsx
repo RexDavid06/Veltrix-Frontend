@@ -314,7 +314,7 @@ function Accounts({ ctx }) {
 
 function Money({ view, ctx }) {
   const { dashboard, onNavigate, onOpenTopUp } = ctx
-  if (view === 'deposits') return <DepositPanel />
+  if (view === 'deposits') return <DepositPanel onNavigate={onNavigate} />
   const titles = { wallet: 'Wallet & Settlement', deposits: 'Deposits', withdrawals: 'Withdrawal Portal' }
   const cash = dashboard?.account?.cash_balance !== undefined
     ? Number(dashboard.account.cash_balance)

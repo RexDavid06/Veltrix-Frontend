@@ -38,6 +38,7 @@ describe('path <-> view mapping', () => {
     expect(viewForPath('/admin')).toBe('admin')
     expect(viewForPath('/admin/users')).toBe('admin-customers')
     expect(viewForPath('/admin/transactions')).toBe('admin-transactions')
+    expect(viewForPath('/admin/deposits')).toBe('admin-deposits')
     expect(viewForPath('/admin/profile')).toBe('admin-profile')
     expect(viewForPath('/profile')).toBe('profile')
   })
