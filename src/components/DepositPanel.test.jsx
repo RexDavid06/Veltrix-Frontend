@@ -229,6 +229,39 @@ describe('Deposit panel', () => {
     expect(container.textContent).not.toContain('USDT TRC20 RECEIVING WALLET ADDRESS')
   })
 
+  it('shows configured TRC-20 option without address or creation while requests are closed', async () => {
+    const shared = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t'
+    mockLoad([], configData({
+      deposits_enabled: false,
+      bank: { enabled: false, currency: '', instructions: 'Contact support.' },
+      tron: {
+        configured: true, display_enabled: true, enabled: false,
+        requests_enabled: false, live_enabled: false,
+        address: shared,
+        error: 'Direct TRON deposits are configured, but new deposit requests are not open on this deployment.',
+      },
+      methods: [
+        { type: 'card', enabled: false },
+        { type: 'bank_transfer', enabled: false },
+        { type: 'crypto', configured: true, display_enabled: true, enabled: false, address: shared },
+      ],
+    }))
+    await act(async () => root.render(<DepositPanel />))
+    await settle()
+    expect(container.querySelectorAll('[role="tab"]')).toHaveLength(3)
+    expect(container.textContent).toContain('USDT TRC-20 is configured')
+    expect(container.textContent).toContain('new deposit requests are not open')
+    expect(container.textContent).toContain('Do not send USDT for now')
+    expect(container.textContent).toContain('Not open')
+    expect(container.textContent).toContain('Bank Transfer')
+    expect(container.textContent).toContain('Card Payment')
+    expect(container.textContent).not.toContain(shared)
+    expect(container.textContent).not.toContain('USDT TRC20 RECEIVING WALLET ADDRESS')
+    expect(container.textContent).not.toContain('Get exact deposit instructions')
+    expect(container.querySelector('#depositAmount')).toBeNull()
+    expect(api.post).not.toHaveBeenCalled()
+  })
+
   it('disables payment requests and offers retry when deposit config fails', async () => {
     api.get.mockImplementation((url) => url === '/deposits/config/'
       ? Promise.reject(new Error('config unavailable'))

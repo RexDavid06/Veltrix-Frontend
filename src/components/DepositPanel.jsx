@@ -21,10 +21,13 @@ export default function DepositPanel({ onNavigate }) {
   const bank = config.bank && typeof config.bank === 'object' && !Array.isArray(config.bank) ? config.bank : {}
   const tron = config.tron && typeof config.tron === 'object' && !Array.isArray(config.tron) ? config.tron : {}
   const sharedAddress = String(tron.address || tron.receiving_address || cryptoMethod.address || '').trim()
-  const tronReady = Boolean(directMode && tron.enabled && sharedAddress)
+  const tronConfigured = Boolean(directMode && (tron.configured === true || (tron.enabled && sharedAddress)))
+  const tronDisplayEnabled = Boolean(directMode && (tron.display_enabled !== undefined ? tron.display_enabled : tronConfigured))
+  const tronReady = Boolean(directMode && tron.enabled && tronConfigured && sharedAddress)
   const configReady = configState === 'ready'
   const depositsEnabled = Boolean(config.deposits_enabled)
   const cryptoAvailable = Boolean(configReady && depositsEnabled && (directMode ? tronReady : true))
+  const cryptoConfiguredClosed = Boolean(configReady && directMode && tronConfigured && tronDisplayEnabled && !cryptoAvailable)
   const bankCurrency = String(bank.currency || bankMethod.currency || '').trim()
   const bankEnabled = bank.enabled !== undefined ? Boolean(bank.enabled) : Boolean(bankMethod.enabled)
   const bankAvailable = Boolean(configReady && depositsEnabled && bankEnabled && bankCurrency)
@@ -116,7 +119,11 @@ export default function DepositPanel({ onNavigate }) {
       <h3>Deposit funds</h3>
       <p className="muted-copy">
         {directMode
-          ? 'USDT deposits use the TRON (TRC20) network only. Every request uses the same Veltrix receiving address; your exact payable amount identifies your request.'
+          ? cryptoConfiguredClosed
+            ? 'USDT TRC-20 is configured for this deployment, but new deposit requests are not open. Do not send USDT yet.'
+            : cryptoAvailable
+              ? 'USDT deposits use the TRON (TRC20) network only. Every request uses the same Veltrix receiving address; your exact payable amount identifies your request.'
+              : 'USDT deposits use the TRON (TRC20) network only. A receiving address is shown only after this deployment is fully configured and deposit requests are open.'
           : 'USDT deposits are quoted by NOWPayments. Bank transfers are arranged manually with a Veltrix operator.'}
       </p>
 
@@ -125,8 +132,8 @@ export default function DepositPanel({ onNavigate }) {
           {
             id: 'crypto',
             title: 'Crypto — USDT (TRC-20)',
-            detail: directMode ? 'TRON (TRC-20) · USDT' : 'USDT quote via NOWPayments',
-            badge: cryptoAvailable ? 'Available' : 'Unavailable',
+            detail: directMode ? (tronConfigured ? 'TRON (TRC-20) · configured' : 'TRON (TRC-20) · USDT') : 'USDT quote via NOWPayments',
+            badge: cryptoAvailable ? 'Available' : cryptoConfiguredClosed ? 'Not open' : 'Unavailable',
           },
           {
             id: 'bank',
@@ -170,7 +177,7 @@ export default function DepositPanel({ onNavigate }) {
       )}
 
       {method === 'crypto' && <div role="tabpanel" aria-label="Crypto USDT deposit">
-        {configReady && directMode && tronReady && (
+        {configReady && directMode && cryptoAvailable && (
           <div style={{ margin: '16px 0', padding: 14, border: '1px solid var(--line)', borderRadius: 5, overflowWrap: 'anywhere' }}>
             <div className="stat-label">USDT TRC20 RECEIVING WALLET ADDRESS</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 8 }}>
@@ -187,7 +194,14 @@ export default function DepositPanel({ onNavigate }) {
             </p>
           </div>
         )}
-        {configReady && !cryptoAvailable && (
+        {cryptoConfiguredClosed && (
+          <div className="admin-warn" role="note" style={{ marginTop: 12 }}>
+            <strong>USDT TRC-20 is configured, but new deposit requests are not open.</strong>{' '}
+            No receiving address is displayed and no deposit request can be created until funding is approved.
+            Do not send USDT for now.
+          </div>
+        )}
+        {configReady && !cryptoAvailable && !cryptoConfiguredClosed && (
           <div className="admin-warn" role="note" style={{ marginTop: 12 }}>
             {directMode
               ? 'Direct TRON deposits are not enabled on this deployment. Do not send funds to any address shown elsewhere.'
