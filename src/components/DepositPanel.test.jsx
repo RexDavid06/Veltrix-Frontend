@@ -169,11 +169,93 @@ describe('Deposit panel', () => {
     } })
     await act(async () => root.render(<DepositPanel onNavigate={() => {}} />))
     await settle()
-    await clickButton('Bank transfer')
+    await clickButton('Bank Transfer')
     await fillAndSubmit('50.00')
     expect(api.post).toHaveBeenCalledWith('/deposits/bank/', expect.objectContaining({ amount: '50.00' }), expect.anything())
     expect(container.textContent).toContain('No bank account details are issued automatically')
     expect(container.textContent).toContain('Contact support for verified details')
     expect(container.textContent).not.toContain('account_number')
+  })
+
+  it('always shows crypto, bank, and card options when bank is disabled', async () => {
+    mockLoad([], configData({ bank: { enabled: false, currency: '', instructions: '' } }))
+    await act(async () => root.render(<DepositPanel />))
+    await settle()
+    const tabs = Array.from(container.querySelectorAll('[role="tab"]'))
+    expect(tabs).toHaveLength(3)
+    expect(tabs.map((tab) => tab.getAttribute('aria-label') || tab.textContent)).toEqual(expect.arrayContaining([
+      expect.stringContaining('Crypto'),
+      expect.stringContaining('Bank Transfer'),
+      expect.stringContaining('Card Payment'),
+    ]))
+    expect(container.textContent).toContain('Bank Transfer')
+    expect(container.textContent).toContain('Card Payment')
+    expect(container.textContent).toContain('Coming soon')
+  })
+
+  it('shows verified bank-transfer support guidance when bank is disabled', async () => {
+    const navigate = vi.fn()
+    mockLoad([], configData({ bank: { enabled: false, currency: '', instructions: '' } }))
+    await act(async () => root.render(<DepositPanel onNavigate={navigate} />))
+    await settle()
+    await clickButton('Bank Transfer')
+    expect(container.textContent).toContain('No bank account details are issued automatically')
+    expect(container.textContent).toContain('Automated bank-transfer requests are not open on this deployment')
+    expect(container.querySelector('#depositAmount')).toBeNull()
+    await clickButton('Contact support for verified details')
+    expect(navigate).toHaveBeenCalledWith('portal-support')
+  })
+
+  it('keeps card payments visibly disabled and cannot start a payment', async () => {
+    await act(async () => root.render(<DepositPanel />))
+    await settle()
+    await clickButton('Card Payment')
+    expect(container.textContent).toContain('Card payments are not available yet')
+    const cardButton = Array.from(container.querySelectorAll('button'))
+      .find((button) => button.textContent.trim() === 'Card payment coming soon')
+    expect(cardButton).toBeTruthy()
+    expect(cardButton.disabled).toBe(true)
+    expect(container.querySelector('form')).toBeNull()
+    expect(api.post).not.toHaveBeenCalled()
+  })
+
+  it('hides the crypto address and form when direct TRON deposits are not ready', async () => {
+    mockLoad([], configData({ tron: { enabled: false, address: '' } }))
+    await act(async () => root.render(<DepositPanel />))
+    await settle()
+    expect(container.querySelectorAll('[role="tab"]')).toHaveLength(3)
+    expect(container.textContent).toContain('Direct TRON deposits are not enabled on this deployment')
+    expect(container.querySelector('#depositAmount')).toBeNull()
+    expect(container.textContent).not.toContain('USDT TRC20 RECEIVING WALLET ADDRESS')
+  })
+
+  it('disables payment requests and offers retry when deposit config fails', async () => {
+    api.get.mockImplementation((url) => url === '/deposits/config/'
+      ? Promise.reject(new Error('config unavailable'))
+      : Promise.resolve({ data: [] }))
+    await act(async () => root.render(<DepositPanel />))
+    await settle()
+    expect(container.textContent).toContain('Deposit configuration could not be loaded')
+    expect(container.textContent).toContain('Retry')
+    expect(container.querySelector('#depositAmount')).toBeNull()
+    expect(container.querySelectorAll('[role="tab"]')).toHaveLength(3)
+  })
+
+  it('uses bank method config for availability, currency, and instructions', async () => {
+    mockLoad([], configData({
+      bank: undefined,
+      tron: { enabled: false },
+      methods: [
+        { type: 'crypto', enabled: false },
+        { type: 'bank_transfer', enabled: true, currency: 'GBP', instructions: 'Contact Veltrix admin for verified bank details.' },
+        { type: 'card', enabled: false, note: 'Coming soon.' },
+      ],
+    }))
+    await act(async () => root.render(<DepositPanel />))
+    await settle()
+    await clickButton('Bank Transfer')
+    expect(container.textContent).toContain('Amount (GBP)')
+    expect(container.textContent).toContain('Contact Veltrix admin for verified bank details')
+    expect(container.querySelector('#depositAmount')).toBeTruthy()
   })
 })
