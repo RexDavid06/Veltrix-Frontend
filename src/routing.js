@@ -15,7 +15,7 @@ export const APP_VIEWS = [
 // Platform admin views (served by AdminViews, gated on the admin role).
 export const ADMIN_VIEWS = [
   'admin', 'admin-customers', 'admin-kyc', 'admin-transactions', 'admin-deposits',
-  'admin-instruments', 'admin-support', 'admin-audit', 'admin-profile',
+  'admin-deposits-diagnostics', 'admin-instruments', 'admin-support', 'admin-audit', 'admin-profile',
 ]
 
 // Auth screens (login/register/password flows).
@@ -45,6 +45,7 @@ export const VIEW_PATHS = {
   'admin-kyc': '/admin/verification',
   'admin-transactions': '/admin/transactions',
   'admin-deposits': '/admin/deposits',
+  'admin-deposits-diagnostics': '/admin/deposits/diagnostics',
   'admin-instruments': '/admin/instruments',
   'admin-support': '/admin/support',
   'admin-audit': '/admin/audit',

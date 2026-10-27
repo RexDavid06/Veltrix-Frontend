@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import AdminDeposits from './AdminDeposits'
+import AdminDepositDiagnostics from './AdminDepositDiagnostics'
 import AppSidebar from './AppSidebar'
 import DataTable from './DataTable'
 import ProfileView from './ProfileView'
@@ -1359,12 +1360,37 @@ export default function AdminViews({ view, ctx = {}, onNavigate, showToast = () 
       <AdminShell
         view={view}
         title="Deposit Operations"
-        subtitle="Crypto transfer attribution, manual bank approvals, and reconciliation."
+        subtitle="Monitor, verify, and reconcile client funding activity across all rails."
         onNavigate={onNavigate}
         onLogout={ctx.onLogout}
         ctx={ctx}
       >
+        <div style={{ marginBottom: 12 }}>
+          <button className="btn btn-outline" onClick={() => onNavigate('admin-deposits-diagnostics')}>
+            Deposit diagnostics
+          </button>
+        </div>
         <AdminDeposits showToast={showToast} />
+      </AdminShell>
+    )
+  }
+
+  if (view === 'admin-deposits-diagnostics') {
+    return (
+      <AdminShell
+        view={view}
+        title="Deposit Diagnostics"
+        subtitle="Temporary read-only configuration check for deposit network availability."
+        onNavigate={onNavigate}
+        onLogout={ctx.onLogout}
+        ctx={ctx}
+      >
+        <div style={{ marginBottom: 12 }}>
+          <button className="btn btn-outline" onClick={() => onNavigate('admin-deposits')}>
+            Back to deposit operations
+          </button>
+        </div>
+        <AdminDepositDiagnostics />
       </AdminShell>
     )
   }
