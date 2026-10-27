@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 
 const COPY = {
   login: {
@@ -20,6 +20,9 @@ const COPY = {
 }
 
 export default function AuthView({ mode, onSubmit, error, onNavigate }) {
+  const [showPassword, setShowPassword] = useState(false)
+  const [showNewPassword, setShowNewPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   if (mode === 'verify') {
     return (
       <>
@@ -68,27 +71,49 @@ export default function AuthView({ mode, onSubmit, error, onNavigate }) {
           <p>Set a new password for your account. For security, this link can only be used once.</p>
           <div className="form-group">
             <label htmlFor="new_password">New password</label>
-            <input
-              id="new_password"
-              name="new_password"
-              type="password"
-              required
-              minLength={8}
-              placeholder="At least 8 characters"
-              autoComplete="new-password"
-            />
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <input
+                id="new_password"
+                name="new_password"
+                type={showNewPassword ? 'text' : 'password'}
+                required
+                minLength={8}
+                placeholder="At least 8 characters"
+                autoComplete="new-password"
+                style={{ paddingRight: 42, width: '100%' }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowNewPassword((v) => !v)}
+                aria-label={showNewPassword ? 'Hide password' : 'Show password'}
+                style={{ position: 'absolute', right: 8, background: 'none', border: 0, cursor: 'pointer', color: 'var(--muted)', padding: 4 }}
+              >
+                {showNewPassword ? '🙈' : '👁️'}
+              </button>
+            </div>
           </div>
           <div className="form-group">
             <label htmlFor="confirm_password">Confirm new password</label>
-            <input
-              id="confirm_password"
-              name="confirm_password"
-              type="password"
-              required
-              minLength={8}
-              placeholder="Re-enter your new password"
-              autoComplete="new-password"
-            />
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <input
+                id="confirm_password"
+                name="confirm_password"
+                type={showConfirmPassword ? 'text' : 'password'}
+                required
+                minLength={8}
+                placeholder="Re-enter your new password"
+                autoComplete="new-password"
+                style={{ paddingRight: 42, width: '100%' }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword((v) => !v)}
+                aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                style={{ position: 'absolute', right: 8, background: 'none', border: 0, cursor: 'pointer', color: 'var(--muted)', padding: 4 }}
+              >
+                {showConfirmPassword ? '🙈' : '👁️'}
+              </button>
+            </div>
           </div>
           {error && <div className="admin-warn" role="alert">{error}</div>}
           <button className="btn btn-primary" type="submit">Update password</button>
@@ -120,15 +145,26 @@ export default function AuthView({ mode, onSubmit, error, onNavigate }) {
         </div>
         <div className="form-group">
           <label htmlFor="password">Password</label>
-          <input
-            id="password"
-            name="password"
-            type="password"
-            required
-            minLength={8}
-            placeholder="At least 8 characters"
-            autoComplete={register ? 'new-password' : 'current-password'}
-          />
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+            <input
+              id="password"
+              name="password"
+              type={showPassword ? 'text' : 'password'}
+              required
+              minLength={8}
+              placeholder="At least 8 characters"
+              autoComplete={register ? 'new-password' : 'current-password'}
+              style={{ paddingRight: 42, width: '100%' }}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              style={{ position: 'absolute', right: 8, background: 'none', border: 0, cursor: 'pointer', color: 'var(--muted)', padding: 4 }}
+            >
+              {showPassword ? '🙈' : '👁️'}
+            </button>
+          </div>
         </div>
         {!register && (
           <div className="form-group">

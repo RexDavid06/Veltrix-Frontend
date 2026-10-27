@@ -329,3 +329,70 @@ describe('Deposit panel', () => {
     expect(container.querySelector('#depositAmount')).toBeTruthy()
   })
 })
+
+function waitForCondition(predicate, timeout = 2000) {
+  return new Promise((resolve, reject) => {
+    const start = Date.now()
+    const check = () => {
+      try {
+        if (predicate()) return resolve()
+      } catch (e) {}
+      if (Date.now() - start > timeout) return reject(new Error('timeout'))
+      setTimeout(check, 10)
+    }
+    check()
+  })
+}
+
+
+  it('shows checking state while config is loading and does not show Not open/Unavailable prematurely', async () => {
+    let resolveConfig
+    const configPromise = new Promise((resolve) => { resolveConfig = resolve })
+    api.get.mockImplementation((url) => {
+      if (url === DEPOSITS_URL) return Promise.resolve({ data: [] })
+      if (url === CONFIG_URL) return configPromise
+      return Promise.resolve({ data: [] })
+    })
+    container = document.createElement('div')
+    document.body.appendChild(container)
+    root = createRoot(container)
+    await act(async () => {
+      root.render(<DepositPanel onNavigate={() => {}} />)
+    })
+    expect(container.textContent).toContain('Checking available deposit methods')
+    expect(container.textContent).not.toContain('Direct TRON deposits are configured, but new deposit requests are not open')
+    expect(container.textContent).not.toContain('Direct TRON deposits are not enabled on this deployment')
+    const badges = Array.from(container.querySelectorAll('button[role="tab"]')).map((b) => b.textContent)
+    expect(badges.join(' ')).toContain('Checking')
+    await act(async () => {
+      resolveConfig({ data: {
+        deposits_enabled: true,
+        crypto_mode: 'direct_tron',
+        methods: [{ type: 'crypto', enabled: false, label: 'Crypto payment (USDT TRC20)', currency: 'USDT', network: 'TRON (TRC20)' }],
+        tron: { configured: true, display_enabled: true, enabled: false, requests_enabled: false, live_enabled: false, error: 'Direct TRON deposits are configured, but new deposit requests are not open on this deployment.' }
+      } })
+    })
+    await new Promise((r) => setTimeout(r, 50))
+    await act(async () => {})
+    expect(container.textContent).toContain('new deposit requests are not open')
+  })
+
+  it('shows Not open when configured but requests disabled due to live verification', async () => {
+    mockLoad([], {
+      deposits_enabled: true,
+      crypto_mode: 'direct_tron',
+      methods: [{ type: 'crypto', enabled: false, label: 'Crypto payment (USDT TRC20)', currency: 'USDT', network: 'TRON (TRC20)' }],
+      tron: { configured: true, display_enabled: true, enabled: false, requests_enabled: false, live_enabled: false, error: 'Direct TRON deposits are configured, but live verification is pending. New deposit requests are not open on this deployment.' }
+    })
+    container = document.createElement('div')
+    document.body.appendChild(container)
+    root = createRoot(container)
+    await act(async () => {
+      root.render(<DepositPanel onNavigate={() => {}} />)
+    })
+    await new Promise((r) => setTimeout(r, 50))
+    await act(async () => {})
+    expect(container.textContent).toContain('new deposit requests are not open')
+    const badges = Array.from(container.querySelectorAll('button[role="tab"]')).map((b) => b.textContent)
+    expect(badges.join(' ')).toContain('Not open')
+  })

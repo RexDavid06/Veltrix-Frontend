@@ -126,13 +126,15 @@ export default function DepositPanel({ onNavigate }) {
       <div className="eyebrow"><span className="eyebrow-line" /> FUNDING</div>
       <h3>Deposit funds</h3>
       <p className="muted-copy">
-        {directMode
-          ? cryptoConfiguredClosed
-            ? 'USDT TRC-20 is configured for this deployment, but new deposit requests are not open. Do not send USDT yet.'
-            : cryptoAvailable
-              ? 'USDT deposits use the TRON (TRC20) network only. Every request uses the same Veltrix receiving address; your exact payable amount identifies your request.'
-              : 'USDT deposits use the TRON (TRC20) network only. A receiving address is shown only after this deployment is fully configured and deposit requests are open.'
-          : 'USDT deposits are quoted by NOWPayments. Bank transfers are arranged manually with a Veltrix operator.'}
+        {!configReady
+          ? 'Checking available deposit methods…'
+          : directMode
+            ? cryptoConfiguredClosed
+              ? 'USDT TRC-20 is configured for this deployment, but new deposit requests are not open. Do not send USDT yet.'
+              : cryptoAvailable
+                ? 'USDT deposits use the TRON (TRC20) network only. Every request uses the same Veltrix receiving address; your exact payable amount identifies your request.'
+                : 'USDT deposits use the TRON (TRC20) network only. A receiving address is shown only after this deployment is fully configured and deposit requests are open.'
+            : 'USDT deposits are quoted by NOWPayments. Bank transfers are arranged manually with a Veltrix operator.'}
       </p>
 
       <div role="tablist" aria-label="Deposit method" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 8, margin: '16px 0' }}>
@@ -141,7 +143,7 @@ export default function DepositPanel({ onNavigate }) {
             id: 'crypto',
             title: 'Crypto — USDT (TRC-20)',
             detail: directMode ? (tronConfigured ? 'TRON (TRC-20) · configured' : 'TRON (TRC-20) · USDT') : 'USDT quote via NOWPayments',
-            badge: cryptoAvailable ? 'Available' : cryptoConfiguredClosed ? 'Not open' : 'Unavailable',
+            badge: !configReady ? 'Checking' : cryptoAvailable ? 'Available' : cryptoConfiguredClosed ? 'Not open' : 'Unavailable',
           },
           {
             id: 'bank',
@@ -175,7 +177,17 @@ export default function DepositPanel({ onNavigate }) {
       </div>
 
       {configState === 'loading' && (
-        <p className="muted-copy" role="status" style={{ margin: '10px 0' }}>Checking available deposit methods…</p>
+        <div role="status" aria-busy="true" style={{ margin: '16px 0' }}>
+          <div style={{ padding: 14, border: '1px solid var(--line)', borderRadius: 5 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <div style={{ height: 12, width: 180, background: 'rgba(255,255,255,0.08)', borderRadius: 3 }} />
+              <div style={{ height: 18, width: 120, background: 'rgba(255,255,255,0.06)', borderRadius: 3 }} />
+            </div>
+            <div style={{ marginTop: 10, height: 10, width: '90%', background: 'rgba(255,255,255,0.05)', borderRadius: 3 }} />
+            <div style={{ marginTop: 6, height: 10, width: '70%', background: 'rgba(255,255,255,0.05)', borderRadius: 3 }} />
+          </div>
+          <p className="muted-copy" style={{ margin: '10px 0' }}>Checking available deposit methods…</p>
+        </div>
       )}
       {configState === 'error' && (
         <div className="admin-warn" role="alert">
