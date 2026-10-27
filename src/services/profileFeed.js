@@ -12,11 +12,13 @@ export async function fetchProfile() {
 }
 
 // Only send writable fields: the backend ignores privileged ones anyway, and
-// never sending them keeps the intent explicit at the client boundary.
+// never sending them keeps the intent explicit at the client boundary. Email
+// is writable server-side (and keeps the login username in sync).
 export async function updateProfile(patch = {}) {
   const payload = {}
   if (patch.first_name !== undefined) payload.first_name = patch.first_name
   if (patch.last_name !== undefined) payload.last_name = patch.last_name
+  if (patch.email !== undefined) payload.email = patch.email
   const res = await api.patch(PROFILE_URL, payload)
   return res.data
 }

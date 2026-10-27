@@ -39,7 +39,7 @@ describe('fetchProfile', () => {
 })
 
 describe('updateProfile', () => {
-  it('sends only the writable name fields', async () => {
+  it('sends only the writable fields, including email, and never privileged ones', async () => {
     respond(() => ok({ id: 7, first_name: 'Ann', last_name: 'Lee' }))
     await profileFeed.updateProfile({
       first_name: 'Ann',
@@ -48,12 +48,16 @@ describe('updateProfile', () => {
       is_staff: true,
       is_verified: true,
       cash_balance: '9999.00',
-      email: 'hijack@example.test',
+      email: 'new@example.test',
     })
 
     expect(calls).toHaveLength(1)
     expect(calls[0].method).toBe('patch')
-    expect(JSON.parse(calls[0].data)).toEqual({ first_name: 'Ann', last_name: 'Lee' })
+    expect(JSON.parse(calls[0].data)).toEqual({
+      first_name: 'Ann',
+      last_name: 'Lee',
+      email: 'new@example.test',
+    })
   })
 
   it('omits untouched fields so a partial save stays partial', async () => {

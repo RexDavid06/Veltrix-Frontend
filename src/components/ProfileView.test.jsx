@@ -20,6 +20,12 @@ const SERVER_PROFILE = {
   is_staff: true,
 }
 
+const CLIENT_PROFILE = {
+  ...SERVER_PROFILE,
+  role: 'client',
+  is_staff: false,
+}
+
 let api
 let ProfileView
 let container
@@ -93,7 +99,7 @@ afterEach(() => {
 })
 
 describe('ProfileView', () => {
-  it('shows the backend record, including role and verification, as read-only', async () => {
+  it('shows the backend record, including role and verification', async () => {
     setResponse(() => ok(SERVER_PROFILE))
     const ctx = { profile: null, onProfileSaved: vi.fn(), showToast: vi.fn(), onLogout: vi.fn() }
 
@@ -105,8 +111,10 @@ describe('ProfileView', () => {
     expect(html).toContain('Administrator')
     expect(html).toContain('Pending verification')
     expect(html).toContain('VX-004')
-    // Email is displayed from the backend but never editable here.
+    // The account record still displays the backend email read-only, while the
+    // admin edit form exposes it for changes.
     expect(field(container, 'profileEmail').readOnly).toBe(true)
+    expect(field(container, 'profileEmailEdit').value).toBe('ann@example.test')
     expect(container.querySelectorAll('input[readonly]').length).toBe(1)
   })
 
@@ -126,10 +134,38 @@ describe('ProfileView', () => {
 
     const patch = requests.find((r) => r.method === 'patch')
     expect(patch).toBeTruthy()
-    expect(JSON.parse(patch.body)).toEqual({ first_name: 'Anna', last_name: 'Nguyen' })
+    expect(JSON.parse(patch.body)).toEqual({
+      email: 'ann@example.test',
+      first_name: 'Anna',
+      last_name: 'Nguyen',
+    })
     expect(onProfileSaved).toHaveBeenCalledWith(expect.objectContaining({ first_name: 'Anna' }))
     expect(showToast).toHaveBeenCalledWith('Profile updated.')
     expect(container.innerHTML).toContain('Anna Nguyen')
+  })
+
+  it('lets an administrator change their email through PATCH', async () => {
+    const updated = { ...SERVER_PROFILE, email: 'new@example.test', username: 'new@example.test' }
+    let call = 0
+    setResponse(() => {
+      call += 1
+      return ok(call === 1 ? SERVER_PROFILE : updated)
+    })
+    const onProfileSaved = vi.fn()
+    await mount({ profile: null, onProfileSaved, showToast: vi.fn(), onLogout: vi.fn() })
+
+    await act(async () => { fill(field(container, 'profileEmailEdit'), 'new@example.test') })
+    await submit()
+
+    const patch = requests.find((r) => r.method === 'patch')
+    expect(patch).toBeTruthy()
+    expect(JSON.parse(patch.body)).toEqual({
+      email: 'new@example.test',
+      first_name: 'Ann',
+      last_name: 'Lee',
+    })
+    expect(onProfileSaved).toHaveBeenCalledWith(expect.objectContaining({ email: 'new@example.test' }))
+    expect(field(container, 'profileEmail').value).toBe('new@example.test')
   })
 
   it('renders field-level backend errors against the right input', async () => {
@@ -149,13 +185,15 @@ describe('ProfileView', () => {
     expect(field(container, 'profileFirstName').getAttribute('aria-invalid')).toBe('true')
   })
 
-  it('keeps a name-only form: privileged fields are never editable inputs', async () => {
-    setResponse(() => ok(SERVER_PROFILE))
+  it('keeps a name-only form for clients: privileged fields are never editable inputs', async () => {
+    setResponse(() => ok(CLIENT_PROFILE))
     await mount({ profile: null, onProfileSaved: vi.fn(), showToast: vi.fn(), onLogout: vi.fn() })
 
     expect(container.querySelectorAll('input:not([readonly])').length).toBe(2)
     const names = Array.from(container.querySelectorAll('input:not([readonly])')).map((input) => input.name)
     expect(names.sort()).toEqual(['first_name', 'last_name'])
+    expect(container.querySelector('#profileEmailEdit')).toBeNull()
+    expect(field(container, 'profileEmail').readOnly).toBe(true)
   })
 
   it('falls back to the in-app profile when the refresh fails', async () => {

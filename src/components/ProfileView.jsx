@@ -10,14 +10,16 @@ function fieldError(errors, field) {
  * console. Reads and edits only GET/PATCH /api/profile/ — the backend derives
  * the user from the token, so nothing account-specific is ever sent.
  *
- * Role, verification and staff status are displayed exactly as returned by
- * the backend and are never editable here.
+ * Administrators can change their own email as well as their name. Role,
+ * verification and staff status are displayed exactly as returned by the
+ * backend and are never editable here.
  */
 export default function ProfileView({ ctx }) {
   const { profile, onProfileSaved, showToast, onLogout } = ctx
   const [record, setRecord] = useState(profile || null)
   const [status, setStatus] = useState(profile ? 'ready' : 'loading')
   const [form, setForm] = useState({
+    email: profile?.role === 'admin' ? profile?.email || '' : '',
     first_name: profile?.first_name || '',
     last_name: profile?.last_name || '',
   })
@@ -26,7 +28,11 @@ export default function ProfileView({ ctx }) {
 
   const applyRecord = useCallback((data) => {
     setRecord(data)
-    setForm({ first_name: data.first_name || '', last_name: data.last_name || '' })
+    setForm({
+      email: data.role === 'admin' ? data.email || '' : '',
+      first_name: data.first_name || '',
+      last_name: data.last_name || '',
+    })
     setStatus('ready')
     if (typeof onProfileSaved === 'function') onProfileSaved(data)
   }, [onProfileSaved])
@@ -53,9 +59,12 @@ export default function ProfileView({ ctx }) {
 
   useEffect(() => { load() }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  const isAdmin = record?.role === 'admin'
+
   const dirty =
     (form.first_name || '') !== (record?.first_name || '') ||
-    (form.last_name || '') !== (record?.last_name || '')
+    (form.last_name || '') !== (record?.last_name || '') ||
+    (isAdmin && (form.email || '') !== (record?.email || ''))
 
   const handleSubmit = async (event) => {
     event.preventDefault()
@@ -63,10 +72,12 @@ export default function ProfileView({ ctx }) {
     setSaving(true)
     setErrors({ summary: '', fieldErrors: {} })
     try {
-      const data = await updateProfile({
+      const payload = {
         first_name: form.first_name ?? '',
         last_name: form.last_name ?? '',
-      })
+      }
+      if (isAdmin) payload.email = (form.email || '').trim()
+      const data = await updateProfile(payload)
       applyRecord(data)
       showToast('Profile updated.')
     } catch (error) {
@@ -123,6 +134,26 @@ export default function ProfileView({ ctx }) {
         )}
 
         <form onSubmit={handleSubmit} noValidate style={{ marginTop: 12 }}>
+          {isAdmin && (
+            <div className="form-group">
+              <label htmlFor="profileEmailEdit">Email address</label>
+              <input
+                id="profileEmailEdit"
+                name="email"
+                type="email"
+                value={form.email}
+                maxLength={254}
+                autoComplete="email"
+                aria-invalid={Boolean(fieldError(errors, 'email'))}
+                aria-describedby={fieldError(errors, 'email') ? 'profileEmailEditError' : undefined}
+                onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))}
+              />
+              {fieldError(errors, 'email') && (
+                <small id="profileEmailEditError" className="field-error">{fieldError(errors, 'email')}</small>
+              )}
+            </div>
+          )}
+
           <div className="form-group">
             <label htmlFor="profileFirstName">First name</label>
             <input
@@ -164,7 +195,11 @@ export default function ProfileView({ ctx }) {
               type="button"
               disabled={saving || !dirty}
               onClick={() => {
-                setForm({ first_name: record?.first_name || '', last_name: record?.last_name || '' })
+                setForm({
+                  email: isAdmin ? record?.email || '' : '',
+                  first_name: record?.first_name || '',
+                  last_name: record?.last_name || '',
+                })
                 setErrors({ summary: '', fieldErrors: {} })
               }}
             >
@@ -172,8 +207,9 @@ export default function ProfileView({ ctx }) {
             </button>
           </div>
           <p className="form-note">
-            Only your name is editable here. Email, role, verification status and account balances are
-            managed server-side and cannot be changed from this form.
+            {isAdmin
+              ? 'Your name and email are editable here. Changing your email also changes the username used to sign in. Role, verification status and account balances remain server-side.'
+              : 'Only your name is editable here. Email, role, verification status and account balances are managed server-side and cannot be changed from this form.'}
           </p>
         </form>
       </div>
