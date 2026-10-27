@@ -1,10 +1,16 @@
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import api from '../api'
+import api, { API_ROOT } from '../api'
 import DepositPanel from './DepositPanel.jsx'
 
-vi.mock('../api', () => ({ default: { get: vi.fn(), post: vi.fn() } }))
+vi.mock('../api', async (importOriginal) => {
+  const actual = await importOriginal()
+  return { ...actual, default: { get: vi.fn(), post: vi.fn() } }
+})
+
+const CONFIG_URL = `${API_ROOT}/deposits/config/`
+const DEPOSITS_URL = `${API_ROOT}/deposits/`
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
@@ -22,7 +28,7 @@ function configData(overrides = {}) {
 
 function mockLoad(deposits = [], config = configData()) {
   api.get.mockImplementation((url) => {
-    if (url === '/deposits/config/') return Promise.resolve({ data: config })
+    if (url === CONFIG_URL) return Promise.resolve({ data: config })
     return Promise.resolve({ data: deposits })
   })
 }
@@ -83,6 +89,20 @@ describe('Deposit panel', () => {
     expect(container.textContent).toContain('Amount (USD)')
   })
 
+  it('routes deposit configuration, history, and creation through the backend API', async () => {
+    mockLoad([], configData({ crypto_mode: 'nowpayments' }))
+    api.post.mockResolvedValue({ data: {
+      id: 8, rail: 'crypto', reference: 'NP-ORDER-8', expected_amount: '24.5', status: 'pending',
+      quote_confirmed: false, instructions: { network: 'TRON (TRC20)', asset: 'USDT', note: 'Review the quote.' },
+    } })
+    await act(async () => root.render(<DepositPanel />))
+    await settle()
+    expect(api.get).toHaveBeenCalledWith(CONFIG_URL)
+    expect(api.get).toHaveBeenCalledWith(DEPOSITS_URL)
+    await fillAndSubmit('25')
+    expect(api.post).toHaveBeenCalledWith(DEPOSITS_URL, expect.objectContaining({ amount_usd: '25' }), expect.anything())
+  })
+
   it('creates a NOWPayments deposit using amount_usd and displays the quote', async () => {
     mockLoad([], configData({ crypto_mode: 'nowpayments' }))
     api.post.mockResolvedValue({ data: {
@@ -94,7 +114,7 @@ describe('Deposit panel', () => {
     await act(async () => root.render(<DepositPanel />))
     await settle()
     await fillAndSubmit('25')
-    expect(api.post).toHaveBeenCalledWith('/deposits/', expect.objectContaining({ amount_usd: '25' }), expect.anything())
+    expect(api.post).toHaveBeenCalledWith(DEPOSITS_URL, expect.objectContaining({ amount_usd: '25' }), expect.anything())
     expect(container.textContent).toContain('USD entered:')
     expect(container.textContent).toContain('Confirm quote')
   })
@@ -121,7 +141,7 @@ describe('Deposit panel', () => {
     expect(container.textContent).toContain('USDT TRC20 RECEIVING WALLET ADDRESS')
     expect(container.textContent).toContain(shared)
     await fillAndSubmit('24.5')
-    expect(api.post).toHaveBeenCalledWith('/deposits/', expect.objectContaining({ amount: '24.5' }), expect.anything())
+    expect(api.post).toHaveBeenCalledWith(DEPOSITS_URL, expect.objectContaining({ amount: '24.5' }), expect.anything())
     expect(container.textContent).toContain('SEND 24.500001 USDT TO')
     expect(container.textContent).toContain('Requested 24.5 USDT')
     expect(container.textContent).toContain('The extra amount is part of your deposit')
@@ -150,7 +170,7 @@ describe('Deposit panel', () => {
       container.querySelector('#txid-11').closest('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
     })
     await settle()
-    expect(api.post).toHaveBeenCalledWith('/deposits/11/txid/', { txid })
+    expect(api.post).toHaveBeenCalledWith(`${API_ROOT}/deposits/11/txid/`, { txid })
     expect(container.textContent).toContain('This is a claim, not proof of payment')
     expect(container.textContent).toContain('Transaction hash recorded')
   })
@@ -171,7 +191,7 @@ describe('Deposit panel', () => {
     await settle()
     await clickButton('Bank Transfer')
     await fillAndSubmit('50.00')
-    expect(api.post).toHaveBeenCalledWith('/deposits/bank/', expect.objectContaining({ amount: '50.00' }), expect.anything())
+    expect(api.post).toHaveBeenCalledWith(`${API_ROOT}/deposits/bank/`, expect.objectContaining({ amount: '50.00' }), expect.anything())
     expect(container.textContent).toContain('No bank account details are issued automatically')
     expect(container.textContent).toContain('Contact support for verified details')
     expect(container.textContent).not.toContain('account_number')
@@ -262,8 +282,25 @@ describe('Deposit panel', () => {
     expect(api.post).not.toHaveBeenCalled()
   })
 
+  it.each([
+    ['HTML', '<!doctype html><html><body>Not an API</body></html>'],
+    ['array', []],
+    ['empty object', {}],
+  ])('shows a configuration error for an invalid %s response', async (_label, payload) => {
+    api.get.mockImplementation((url) => url === CONFIG_URL
+      ? Promise.resolve({ data: payload })
+      : Promise.resolve({ data: [] }))
+    await act(async () => root.render(<DepositPanel />))
+    await settle()
+    expect(container.textContent).toContain('Deposit configuration could not be loaded')
+    expect(container.textContent).not.toContain('Direct TRON deposits are not enabled')
+    expect(container.textContent).not.toContain('USDT TRC-20 is configured')
+    expect(container.querySelector('#depositAmount')).toBeNull()
+    expect(container.querySelectorAll('[role="tab"]')).toHaveLength(3)
+  })
+
   it('disables payment requests and offers retry when deposit config fails', async () => {
-    api.get.mockImplementation((url) => url === '/deposits/config/'
+    api.get.mockImplementation((url) => url === CONFIG_URL
       ? Promise.reject(new Error('config unavailable'))
       : Promise.resolve({ data: [] }))
     await act(async () => root.render(<DepositPanel />))

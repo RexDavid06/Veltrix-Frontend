@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react'
-import api from '../api'
+import api, { API_ROOT } from '../api'
 
 const FALLBACK_TRON = 'TRON (TRC20)'
+const DEPOSITS_ENDPOINT = `${API_ROOT}/deposits`
+const depositEndpoint = (path = '') => `${DEPOSITS_ENDPOINT}/${path}`
 
 export default function DepositPanel({ onNavigate }) {
   const [config, setConfig] = useState({})
@@ -38,15 +40,21 @@ export default function DepositPanel({ onNavigate }) {
 
   const load = async () => {
     try {
-      const result = await api.get('/deposits/')
+      const result = await api.get(depositEndpoint())
       setDeposits(Array.isArray(result.data) ? result.data : [])
       setError('')
     } catch (err) {
       setError(err?.response?.data?.detail || 'Deposit service is currently unavailable.')
     }
     try {
-      const result = await api.get('/deposits/config/')
-      setConfig(result.data && typeof result.data === 'object' && !Array.isArray(result.data) ? result.data : {})
+      const result = await api.get(depositEndpoint('config/'))
+      const data = result?.data
+      if (!data || typeof data !== 'object' || Array.isArray(data) || Object.keys(data).length === 0) {
+        setConfig({})
+        setConfigState('error')
+        return
+      }
+      setConfig(data)
       setConfigState('ready')
     } catch {
       setConfigState((current) => current === 'ready' ? 'ready' : 'error')
@@ -67,7 +75,7 @@ export default function DepositPanel({ onNavigate }) {
     setError('')
     try {
       const key = globalThis.crypto?.randomUUID?.() || `deposit-${Date.now()}-${Math.random().toString(36).slice(2)}`
-      const endpoint = method === 'bank' ? '/deposits/bank/' : '/deposits/'
+      const endpoint = method === 'bank' ? depositEndpoint('bank/') : depositEndpoint()
       const payload = method === 'bank'
         ? { amount, idempotency_key: key }
         : { [directMode ? 'amount' : 'amount_usd']: amount, idempotency_key: key }
@@ -85,7 +93,7 @@ export default function DepositPanel({ onNavigate }) {
     setLoading(true)
     setError('')
     try {
-      const result = await api.post(`/deposits/${deposit.id}/confirm/`)
+      const result = await api.post(depositEndpoint(`${deposit.id}/confirm/`))
       setDeposits((items) => items.map((item) => item.id === deposit.id ? result.data : item))
     } catch (err) {
       setError(err?.response?.data?.detail || 'Could not confirm this quote. Request a new quote.')
@@ -99,7 +107,7 @@ export default function DepositPanel({ onNavigate }) {
     event.preventDefault()
     setError('')
     try {
-      const result = await api.post(`/deposits/${deposit.id}/txid/`, { txid: txidDrafts[deposit.id] || '' })
+      const result = await api.post(depositEndpoint(`${deposit.id}/txid/`), { txid: txidDrafts[deposit.id] || '' })
       setDeposits((items) => items.map((item) => item.id === deposit.id ? result.data.deposit : item))
       setTxidMessages((items) => ({ ...items, [deposit.id]: result.data.message }))
       setTxidDrafts((items) => ({ ...items, [deposit.id]: '' }))
