@@ -8,6 +8,7 @@ vi.mock('../api', async (importOriginal) => {
   const actual = await importOriginal()
   return { ...actual, default: { get: vi.fn(), post: vi.fn() } }
 })
+vi.mock('qrcode', () => ({ default: { toDataURL: vi.fn(async (address) => `data:qr,${address}`) } }))
 
 const CONFIG_URL = `${API_ROOT}/deposits/config/`
 const DEPOSITS_URL = `${API_ROOT}/deposits/`
@@ -80,46 +81,39 @@ async function clickButton(label) {
 }
 
 describe('Deposit panel', () => {
-  it('defaults to the NOWPayments quote flow', async () => {
+  it('shows the network selection entry without a payment form', async () => {
     mockLoad([], configData({ crypto_mode: 'nowpayments' }))
     await act(async () => root.render(<DepositPanel />))
     await settle()
     expect(container.textContent).toContain('Deposit funds')
-    expect(container.textContent).toContain('quoted by NOWPayments')
-    expect(container.textContent).toContain('Amount (USD)')
+    expect(container.textContent).toContain('Deposit via Crypto')
+    expect(container.querySelector('#depositAmount')).toBeNull()
   })
 
-  it('routes deposit configuration, history, and creation through the backend API', async () => {
+  it('loads configuration and history, then requests only the selected network address', async () => {
     mockLoad([], configData({ crypto_mode: 'nowpayments' }))
-    api.post.mockResolvedValue({ data: {
-      id: 8, rail: 'crypto', reference: 'NP-ORDER-8', expected_amount: '24.5', status: 'pending',
-      quote_confirmed: false, instructions: { network: 'TRON (TRC20)', asset: 'USDT', note: 'Review the quote.' },
-    } })
+    api.get.mockImplementation((url) => Promise.resolve({ data: url.endsWith('/USDT_ERC20/address/')
+      ? { address: '0xSelected' }
+      : url === CONFIG_URL ? configData({ crypto_mode: 'nowpayments' }) : [] }))
     await act(async () => root.render(<DepositPanel />))
     await settle()
     expect(api.get).toHaveBeenCalledWith(CONFIG_URL)
     expect(api.get).toHaveBeenCalledWith(DEPOSITS_URL)
-    await fillAndSubmit('25')
-    expect(api.post).toHaveBeenCalledWith(DEPOSITS_URL, expect.objectContaining({ amount_usd: '25' }), expect.anything())
+    await clickButton('USDT Ethereum (ERC-20)')
+    expect(api.get).toHaveBeenCalledWith(`${API_ROOT}/deposits/networks/USDT_ERC20/address/`)
+    expect(api.post).not.toHaveBeenCalled()
   })
 
-  it('creates a NOWPayments deposit using amount_usd and displays the quote', async () => {
+  it('does not create a crypto deposit even when legacy configuration advertises NOWPayments', async () => {
     mockLoad([], configData({ crypto_mode: 'nowpayments' }))
-    api.post.mockResolvedValue({ data: {
-      id: 9, rail: 'crypto', reference: 'NP-ORDER-9', expected_amount: '24.5', price_amount: '25.00', price_currency: 'USD',
-      quoted_amount: '24.5', quoted_currency: 'USDTTRC20', quoted_network: 'TRON (TRC20)',
-      veltrix_fee_amount: '0', veltrix_fee_currency: 'USD', status: 'pending', quote_confirmed: false,
-      instructions: { network: 'TRON (TRC20)', asset: 'USDT', note: 'Review the quote.' },
-    } })
     await act(async () => root.render(<DepositPanel />))
     await settle()
-    await fillAndSubmit('25')
-    expect(api.post).toHaveBeenCalledWith(DEPOSITS_URL, expect.objectContaining({ amount_usd: '25' }), expect.anything())
-    expect(container.textContent).toContain('USD entered:')
-    expect(container.textContent).toContain('Confirm quote')
+    expect(container.textContent).toContain('deposit processing is not enabled')
+    expect(container.querySelector('#depositAmount')).toBeNull()
+    expect(api.post).not.toHaveBeenCalled()
   })
 
-  it('shows the shared address before a request and after creating one', async () => {
+  it('fetches and displays the selected TRON address without creating a deposit', async () => {
     vi.stubEnv('VITE_CRYPTO_DEPOSIT_MODE', 'direct_tron')
     const shared = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t'
     mockLoad([], configData({
@@ -129,28 +123,19 @@ describe('Deposit panel', () => {
         unique_amount_enabled: true, min_amount: '', max_amount: '',
       },
     }))
-    api.post.mockResolvedValue({ data: {
-      id: 10, rail: 'crypto', reference: 'VELT-DIRECT10', expected_amount: '24.500001',
-      requested_amount: '24.5', payable_amount: '24.500001', status: 'detected',
-      confirmations: 1, required_confirmations: 20,
-      qr_code: 'data:image/svg+xml;base64,PHN2Zy8+',
-      instructions: { network: 'TRON (TRC20)', asset: 'USDT', address: shared, amount: '24.500001', note: 'Send on TRC20 only.' },
-    } })
+    api.get.mockImplementation((url) => Promise.resolve({ data: url.endsWith('/USDT_TRC20/address/')
+      ? { address: shared }
+      : url === CONFIG_URL ? configData({ crypto_mode: 'direct_tron' }) : [] }))
     await act(async () => root.render(<DepositPanel />))
     await settle()
-    expect(container.textContent).toContain('USDT TRC20 RECEIVING WALLET ADDRESS')
+    await clickButton('USDT TRON (TRC-20)')
+    await act(async () => waitForCondition(() => container.querySelector('[data-testid="deposit-address"]')))
     expect(container.textContent).toContain(shared)
-    await fillAndSubmit('24.5')
-    expect(api.post).toHaveBeenCalledWith(DEPOSITS_URL, expect.objectContaining({ amount: '24.5' }), expect.anything())
-    expect(container.textContent).toContain('SEND 24.500001 USDT TO')
-    expect(container.textContent).toContain('Requested 24.5 USDT')
-    expect(container.textContent).toContain('The extra amount is part of your deposit')
-    expect(container.textContent).toContain('Blockchain confirmations: 1 / 20')
-    const qr = container.querySelector('img[alt="QR code for the USDT deposit address"]')
-    expect(qr.getAttribute('src')).toBe('data:image/svg+xml;base64,PHN2Zy8+')
+    expect(container.textContent).toContain('Deposit processing and balance crediting are not enabled')
+    expect(api.post).not.toHaveBeenCalled()
   })
 
-  it('submits a transaction hash without presenting it as proof of payment', async () => {
+  it('does not accept frontend transaction-hash submissions', async () => {
     vi.stubEnv('VITE_CRYPTO_DEPOSIT_MODE', 'direct_tron')
     const txid = 'a'.repeat(64)
     const deposit = {
@@ -159,20 +144,12 @@ describe('Deposit panel', () => {
       instructions: { address: 'TSharedAddress', amount: '5', note: 'Send on TRC20 only.' },
     }
     mockLoad([deposit], configData({ crypto_mode: 'direct_tron', tron: { address: 'TSharedAddress' } }))
-    api.post.mockResolvedValue({ data: {
-      deposit: { ...deposit, submitted_txid: txid, txid_state: 'submitted_pending_verification' },
-      txid, status: 'recorded', message: 'Transaction hash recorded. This is not proof of payment.',
-    } })
+    deposit.submitted_txid = txid
     await act(async () => root.render(<DepositPanel />))
     await settle()
-    await setInput(container.querySelector('#txid-11'), txid)
-    await act(async () => {
-      container.querySelector('#txid-11').closest('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
-    })
-    await settle()
-    expect(api.post).toHaveBeenCalledWith(`${API_ROOT}/deposits/11/txid/`, { txid })
+    expect(container.querySelector('#txid-11')).toBeNull()
     expect(container.textContent).toContain('This is a claim, not proof of payment')
-    expect(container.textContent).toContain('Transaction hash recorded')
+    expect(api.post).not.toHaveBeenCalled()
   })
 
   it('creates a manual bank request without account details', async () => {
@@ -244,12 +221,12 @@ describe('Deposit panel', () => {
     await act(async () => root.render(<DepositPanel />))
     await settle()
     expect(container.querySelectorAll('[role="tab"]')).toHaveLength(3)
-    expect(container.textContent).toContain('Direct TRON deposits are not enabled on this deployment')
+    expect(container.textContent).toContain('deposit processing is not enabled')
     expect(container.querySelector('#depositAmount')).toBeNull()
-    expect(container.textContent).not.toContain('USDT TRC20 RECEIVING WALLET ADDRESS')
+    expect(container.querySelector('[data-testid="deposit-address"]')).toBeNull()
   })
 
-  it('shows configured TRC-20 option without address or creation while requests are closed', async () => {
+  it('shows the selected address without opening crypto deposit processing', async () => {
     const shared = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t'
     mockLoad([], configData({
       deposits_enabled: false,
@@ -266,18 +243,18 @@ describe('Deposit panel', () => {
         { type: 'crypto', configured: true, display_enabled: true, enabled: false, address: shared },
       ],
     }))
+    api.get.mockImplementation((url) => Promise.resolve({ data: url.endsWith('/USDT_TRC20/address/')
+      ? { address: shared }
+      : url === CONFIG_URL ? configData({ deposits_enabled: false }) : [] }))
     await act(async () => root.render(<DepositPanel />))
     await settle()
     expect(container.querySelectorAll('[role="tab"]')).toHaveLength(3)
-    expect(container.textContent).toContain('USDT TRC-20 is configured')
-    expect(container.textContent).toContain('new deposit requests are not open')
-    expect(container.textContent).toContain('Do not send USDT for now')
-    expect(container.textContent).toContain('Not open')
+    await clickButton('USDT TRON (TRC-20)')
+    await act(async () => waitForCondition(() => container.querySelector('[data-testid="deposit-address"]')))
+    expect(container.textContent).toContain(shared)
+    expect(container.textContent).toContain('Deposit processing and balance crediting are not enabled')
     expect(container.textContent).toContain('Bank Transfer')
     expect(container.textContent).toContain('Card Payment')
-    expect(container.textContent).not.toContain(shared)
-    expect(container.textContent).not.toContain('USDT TRC20 RECEIVING WALLET ADDRESS')
-    expect(container.textContent).not.toContain('Get exact deposit instructions')
     expect(container.querySelector('#depositAmount')).toBeNull()
     expect(api.post).not.toHaveBeenCalled()
   })
@@ -293,8 +270,7 @@ describe('Deposit panel', () => {
     await act(async () => root.render(<DepositPanel />))
     await settle()
     expect(container.textContent).toContain('Deposit configuration could not be loaded')
-    expect(container.textContent).not.toContain('Direct TRON deposits are not enabled')
-    expect(container.textContent).not.toContain('USDT TRC-20 is configured')
+    expect(container.textContent).toContain('Deposit via Crypto')
     expect(container.querySelector('#depositAmount')).toBeNull()
     expect(container.querySelectorAll('[role="tab"]')).toHaveLength(3)
   })
@@ -359,11 +335,9 @@ function waitForCondition(predicate, timeout = 2000) {
     await act(async () => {
       root.render(<DepositPanel onNavigate={() => {}} />)
     })
-    expect(container.textContent).toContain('Checking available deposit methods')
-    expect(container.textContent).not.toContain('Direct TRON deposits are configured, but new deposit requests are not open')
-    expect(container.textContent).not.toContain('Direct TRON deposits are not enabled on this deployment')
+    expect(container.textContent).toContain('Checking available deposit options')
     const badges = Array.from(container.querySelectorAll('button[role="tab"]')).map((b) => b.textContent)
-    expect(badges.join(' ')).toContain('Checking')
+    expect(badges.join(' ')).toContain('Address only')
     await act(async () => {
       resolveConfig({ data: {
         deposits_enabled: true,
@@ -374,7 +348,7 @@ function waitForCondition(predicate, timeout = 2000) {
     })
     await new Promise((r) => setTimeout(r, 50))
     await act(async () => {})
-    expect(container.textContent).toContain('new deposit requests are not open')
+    expect(container.textContent).toContain('deposit processing is not enabled')
   })
 
   it('shows Not open when configured but requests disabled due to live verification', async () => {
@@ -392,7 +366,7 @@ function waitForCondition(predicate, timeout = 2000) {
     })
     await new Promise((r) => setTimeout(r, 50))
     await act(async () => {})
-    expect(container.textContent).toContain('new deposit requests are not open')
+    expect(container.textContent).toContain('deposit processing is not enabled')
     const badges = Array.from(container.querySelectorAll('button[role="tab"]')).map((b) => b.textContent)
-    expect(badges.join(' ')).toContain('Not open')
+    expect(badges.join(' ')).toContain('Address only')
   })

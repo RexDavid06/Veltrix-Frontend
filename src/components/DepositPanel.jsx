@@ -1,9 +1,21 @@
 import React, { useEffect, useState } from 'react'
+import QRCode from 'qrcode'
 import api, { API_ROOT } from '../api'
 
 const FALLBACK_TRON = 'TRON (TRC20)'
 const DEPOSITS_ENDPOINT = `${API_ROOT}/deposits`
 const depositEndpoint = (path = '') => `${DEPOSITS_ENDPOINT}/${path}`
+
+function isValidNetworkAddress(network, address) {
+  if (typeof address !== 'string' || address !== address.trim()) return false
+  if (network === 'USDT_ERC20' || network === 'USDT_BEP20') {
+    return /^0x[a-fA-F0-9]{40}$/.test(address)
+  }
+  if (network === 'USDT_TRC20') {
+    return /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(address)
+  }
+  return false
+}
 
 export default function DepositPanel({ onNavigate }) {
   const [config, setConfig] = useState({})
@@ -12,24 +24,25 @@ export default function DepositPanel({ onNavigate }) {
   const [deposits, setDeposits] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [txidDrafts, setTxidDrafts] = useState({})
-  const [txidMessages, setTxidMessages] = useState({})
   const [configState, setConfigState] = useState('loading')
+  const [selectedNetwork, setSelectedNetwork] = useState('')
+  const [networkAddress, setNetworkAddress] = useState('')
+  const [addressQr, setAddressQr] = useState('')
+  const [addressState, setAddressState] = useState('idle')
+  const [addressError, setAddressError] = useState('')
+  const [copyState, setCopyState] = useState('idle')
+  const networks = [
+    { key: 'USDT_ERC20', label: 'USDT Ethereum (ERC-20)' },
+    { key: 'USDT_TRC20', label: 'USDT TRON (TRC-20)' },
+    { key: 'USDT_BEP20', label: 'USDT BNB Smart Chain (BEP-20)' },
+  ]
   const methods = Array.isArray(config.methods) ? config.methods : []
   const methodConfig = (type) => methods.find((item) => item && item.type === type) || {}
-  const cryptoMethod = methodConfig('crypto')
   const bankMethod = methodConfig('bank_transfer')
   const directMode = (config.crypto_mode || import.meta.env.VITE_CRYPTO_DEPOSIT_MODE || 'direct_tron') === 'direct_tron'
   const bank = config.bank && typeof config.bank === 'object' && !Array.isArray(config.bank) ? config.bank : {}
-  const tron = config.tron && typeof config.tron === 'object' && !Array.isArray(config.tron) ? config.tron : {}
-  const sharedAddress = String(tron.address || tron.receiving_address || cryptoMethod.address || '').trim()
-  const tronConfigured = Boolean(directMode && (tron.configured === true || (tron.enabled && sharedAddress)))
-  const tronDisplayEnabled = Boolean(directMode && (tron.display_enabled !== undefined ? tron.display_enabled : tronConfigured))
-  const tronReady = Boolean(directMode && tron.enabled && tronConfigured && sharedAddress)
   const configReady = configState === 'ready'
   const depositsEnabled = Boolean(config.deposits_enabled)
-  const cryptoAvailable = Boolean(configReady && depositsEnabled && (directMode ? tronReady : true))
-  const cryptoConfiguredClosed = Boolean(configReady && directMode && tronConfigured && tronDisplayEnabled && !cryptoAvailable)
   const bankCurrency = String(bank.currency || bankMethod.currency || '').trim()
   const bankEnabled = bank.enabled !== undefined ? Boolean(bank.enabled) : Boolean(bankMethod.enabled)
   const bankAvailable = Boolean(configReady && depositsEnabled && bankEnabled && bankCurrency)
@@ -68,18 +81,14 @@ export default function DepositPanel({ onNavigate }) {
 
   const createDeposit = async (event) => {
     event.preventDefault()
-    if (method === 'card' || (method === 'crypto' && !cryptoAvailable) || (method === 'bank' && !bankAvailable)) {
+    if (method !== 'bank' || !bankAvailable) {
       return
     }
     setLoading(true)
     setError('')
     try {
       const key = globalThis.crypto?.randomUUID?.() || `deposit-${Date.now()}-${Math.random().toString(36).slice(2)}`
-      const endpoint = method === 'bank' ? depositEndpoint('bank/') : depositEndpoint()
-      const payload = method === 'bank'
-        ? { amount, idempotency_key: key }
-        : { [directMode ? 'amount' : 'amount_usd']: amount, idempotency_key: key }
-      const result = await api.post(endpoint, payload, { headers: { 'Idempotency-Key': key } })
+      const result = await api.post(depositEndpoint('bank/'), { amount, idempotency_key: key }, { headers: { 'Idempotency-Key': key } })
       setDeposits((items) => [result.data, ...items.filter((item) => item.id !== result.data.id)])
       setAmount('')
     } catch (err) {
@@ -103,23 +112,76 @@ export default function DepositPanel({ onNavigate }) {
     }
   }
 
-  const submitTxid = async (event, deposit) => {
-    event.preventDefault()
-    setError('')
-    try {
-      const result = await api.post(depositEndpoint(`${deposit.id}/txid/`), { txid: txidDrafts[deposit.id] || '' })
-      setDeposits((items) => items.map((item) => item.id === deposit.id ? result.data.deposit : item))
-      setTxidMessages((items) => ({ ...items, [deposit.id]: result.data.message }))
-      setTxidDrafts((items) => ({ ...items, [deposit.id]: '' }))
-    } catch (err) {
-      setError(err?.response?.data?.detail || 'Could not record that transaction hash.')
-    }
-  }
-
   const statusLabel = (value) => ({ pending: 'Awaiting payment', detected: 'Confirming', verifying: 'Confirming',
     verified: 'Confirmed', credited: 'Credited', available: 'Completed', manual_review: 'Manual review',
     expired: 'Expired', rejected: 'Failed', reversed: 'Reversed' }[value] || value)
-  const canSubmitTxid = (deposit) => directMode && !['credited', 'available', 'reserved', 'reversed', 'rejected', 'expired'].includes(deposit.status)
+  const selectNetwork = async (network) => {
+    setSelectedNetwork(network)
+    setNetworkAddress('')
+    setAddressQr('')
+    setAddressError('')
+    setCopyState('idle')
+    setAddressState('loading')
+    try {
+      const result = await api.get(depositEndpoint(`networks/${network}/address/`))
+      const address = result?.data?.address
+      if (typeof address !== 'string' || !address) {
+        setAddressState('unavailable')
+        return
+      }
+      if (!isValidNetworkAddress(network, address)) {
+        setAddressError('The configured address is invalid for this network. No address is displayed.')
+        setAddressState('error')
+        return
+      }
+      const exactAddress = address
+      const qr = await QRCode.toDataURL(exactAddress, { margin: 1, width: 192 })
+      setNetworkAddress(exactAddress)
+      setAddressQr(qr)
+      setAddressState('ready')
+    } catch (err) {
+      if (err?.response?.status === 503 || err?.response?.status === 404) {
+        setAddressState('unavailable')
+      } else {
+        setAddressError(err?.response?.data?.detail || 'Could not load this network address. Please try again.')
+        setAddressState('error')
+      }
+    }
+  }
+
+  const copyAddress = async () => {
+    setCopyState('copying')
+    try {
+      if (navigator.clipboard?.writeText) {
+        try {
+          await navigator.clipboard.writeText(networkAddress)
+          setCopyState('copied')
+          return
+        } catch {
+          // Try the document copy command when the Clipboard API is denied.
+        }
+      }
+
+      const field = document.createElement('textarea')
+      field.value = networkAddress
+      field.setAttribute('readonly', '')
+      field.style.position = 'fixed'
+      field.style.opacity = '0'
+      document.body.appendChild(field)
+      let copied = false
+      try {
+        field.select()
+        field.setSelectionRange(0, field.value.length)
+        copied = document.execCommand?.('copy') === true
+      } finally {
+        field.remove()
+      }
+      if (!copied) throw new Error('Copy command did not succeed')
+      setCopyState('copied')
+    } catch {
+      setCopyState('error')
+    }
+  }
 
   return (
     <div className="app-card">
@@ -127,23 +189,17 @@ export default function DepositPanel({ onNavigate }) {
       <h3>Deposit funds</h3>
       <p className="muted-copy">
         {!configReady
-          ? 'Checking available deposit methods…'
-          : directMode
-            ? cryptoConfiguredClosed
-              ? 'USDT TRC-20 is configured for this deployment, but new deposit requests are not open. Do not send USDT yet.'
-              : cryptoAvailable
-                ? 'USDT deposits use the TRON (TRC20) network only. Every request uses the same Veltrix receiving address; your exact payable amount identifies your request.'
-                : 'USDT deposits use the TRON (TRC20) network only. A receiving address is shown only after this deployment is fully configured and deposit requests are open.'
-            : 'USDT deposits are quoted by NOWPayments. Bank transfers are arranged manually with a Veltrix operator.'}
+          ? 'Checking available deposit options…'
+          : 'Crypto addresses are for network selection only; deposit processing is not enabled. Bank transfers are arranged manually with Veltrix support.'}
       </p>
 
       <div role="tablist" aria-label="Deposit method" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 8, margin: '16px 0' }}>
         {[
           {
             id: 'crypto',
-            title: 'Crypto — USDT (TRC-20)',
-            detail: directMode ? (tronConfigured ? 'TRON (TRC-20) · configured' : 'TRON (TRC-20) · USDT') : 'USDT quote via NOWPayments',
-            badge: !configReady ? 'Checking' : cryptoAvailable ? 'Available' : cryptoConfiguredClosed ? 'Not open' : 'Unavailable',
+            title: 'Deposit via Crypto',
+            detail: 'Choose a USDT network to view its receiving address',
+            badge: 'Address only',
           },
           {
             id: 'bank',
@@ -196,48 +252,25 @@ export default function DepositPanel({ onNavigate }) {
         </div>
       )}
 
-      {method === 'crypto' && <div role="tabpanel" aria-label="Crypto USDT deposit">
-        {configReady && directMode && cryptoAvailable && (
-          <div style={{ margin: '16px 0', padding: 14, border: '1px solid var(--line)', borderRadius: 5, overflowWrap: 'anywhere' }}>
-            <div className="stat-label">USDT TRC20 RECEIVING WALLET ADDRESS</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 8 }}>
-              <code style={{ fontSize: 14 }}>{sharedAddress}</code>
-              <button type="button" className="btn btn-outline" onClick={() => navigator.clipboard?.writeText(sharedAddress)}>Copy address</button>
-            </div>
-            <p className="muted-copy" style={{ marginTop: 8 }}>
-              Network: <strong>TRON (TRC-20)</strong> | Currency: <strong>USDT</strong>.<br />
-              Request a deposit below to receive the exact amount to send, including any unique matching amount.
-              We monitor this shared address, but payment is only eligible for crediting after sufficient network
-              confirmations and may require manual review. <strong>Do not send USDT using another network.</strong>
-              Never send USDT on another network, and do not send twice.
-              This address is public and never requires your private key.
-            </p>
+      {method === 'crypto' && <section role="tabpanel" aria-label="Crypto USDT deposit" style={{ marginTop: 16 }}>
+        <p className="muted-copy">Select a network to request its configured public address. Address display does not start a deposit or verify a payment.</p>
+        <div aria-label="USDT network" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 8 }}>
+          {networks.map((network) => <button key={network.key} type="button" className={`btn ${selectedNetwork === network.key ? 'btn-primary' : 'btn-outline'}`} aria-pressed={selectedNetwork === network.key} onClick={() => selectNetwork(network.key)}>{network.label}</button>)}
+        </div>
+        {addressState === 'loading' && <p role="status" aria-busy="true" className="muted-copy" style={{ marginTop: 14 }}>Loading receiving address…</p>}
+        {addressState === 'unavailable' && <div role="status" className="admin-warn" style={{ marginTop: 14 }}>This network address is currently unavailable. No address is configured.</div>}
+        {addressState === 'error' && <div role="alert" className="admin-warn" style={{ marginTop: 14 }}>{addressError}<button type="button" className="btn btn-outline" style={{ marginLeft: 10 }} onClick={() => selectNetwork(selectedNetwork)}>Retry</button></div>}
+        {addressState === 'ready' && <div style={{ margin: '16px 0', padding: 14, border: '1px solid var(--line)', borderRadius: 5, overflowWrap: 'anywhere' }}>
+          <div className="stat-label">{networks.find((network) => network.key === selectedNetwork)?.label} RECEIVING ADDRESS</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 8 }}>
+            <code data-testid="deposit-address" style={{ fontSize: 14 }}>{networkAddress}</code>
+            <button type="button" className="btn btn-outline" onClick={copyAddress} disabled={copyState === 'copying'}>{copyState === 'copied' ? 'Address copied' : copyState === 'copying' ? 'Copying…' : 'Copy address'}</button>
           </div>
-        )}
-        {cryptoConfiguredClosed && (
-          <div className="admin-warn" role="note" style={{ marginTop: 12 }}>
-            <strong>USDT TRC-20 is configured, but new deposit requests are not open.</strong>{' '}
-            No receiving address is displayed and no deposit request can be created until funding is approved.
-            Do not send USDT for now.
-          </div>
-        )}
-        {configReady && !cryptoAvailable && !cryptoConfiguredClosed && (
-          <div className="admin-warn" role="note" style={{ marginTop: 12 }}>
-            {directMode
-              ? 'Direct TRON deposits are not enabled on this deployment. Do not send funds to any address shown elsewhere.'
-              : 'USDT deposits are not enabled on this deployment.'}
-          </div>
-        )}
-        {method === 'crypto' && cryptoAvailable && (
-          <form onSubmit={createDeposit} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 10, maxWidth: 520, alignItems: 'end', margin: '20px 0' }}>
-            <div className="form-group" style={{ margin: 0 }}>
-              <label htmlFor="depositAmount">Amount ({directMode ? 'USDT' : 'USD'})</label>
-              <input id="depositAmount" type="number" min={directMode ? '0.000001' : '0.01'} step={directMode ? '0.000001' : '0.01'} required value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={directMode ? 'e.g. 25' : 'e.g. 25.00'} />
-            </div>
-            <button className="btn btn-primary" style={{ width: '100%' }} type="submit" disabled={loading}>{loading ? 'Preparing instructions…' : directMode ? 'Get exact deposit instructions' : 'Get USDT quote'}</button>
-          </form>
-        )}
-      </div>}
+          {addressQr && <img data-testid="deposit-address-qr" src={addressQr} alt={`QR code for ${networks.find((network) => network.key === selectedNetwork)?.label} address`} width="192" height="192" style={{ display: 'block', marginTop: 12, background: '#fff', padding: 8 }} />}
+          {copyState === 'error' && <p role="alert" className="muted-copy">Could not copy the address. Select and copy it manually.</p>}
+          <p className="muted-copy" style={{ marginBottom: 0 }}>Receiving address only. Deposit processing and balance crediting are not enabled. Verify the network carefully before sending funds.</p>
+        </div>}
+      </section>}
 
       {method === 'bank' && <section role="tabpanel" aria-label="Bank transfer deposit" style={{ marginTop: 16 }}>
         <div style={{ padding: 14, border: '1px solid var(--line)', borderRadius: 5 }}>
@@ -320,13 +353,6 @@ export default function DepositPanel({ onNavigate }) {
             {!isBank && directMode && deposit.required_confirmations > 0 && !['credited', 'available', 'reserved'].includes(deposit.status) && <div className="muted-copy">Blockchain confirmations: {deposit.confirmations || 0} / {deposit.required_confirmations}</div>}
             {deposit.transaction_hash && <div className="muted-copy">Linked transaction: <code>{deposit.transaction_hash}</code></div>}
             {!isBank && deposit.submitted_txid && !deposit.transaction_hash && <div className="muted-copy">Submitted for verification: <code>{deposit.submitted_txid}</code>. This is a claim, not proof of payment.</div>}
-
-            {!isBank && canSubmitTxid(deposit) && <form onSubmit={(event) => submitTxid(event, deposit)} style={{ marginTop: 12, display: 'grid', gap: 8 }}>
-              <label htmlFor={`txid-${deposit.id}`}>Already sent? Submit the transaction hash for checking</label>
-              <input id={`txid-${deposit.id}`} value={txidDrafts[deposit.id] || ''} onChange={(event) => setTxidDrafts((items) => ({ ...items, [deposit.id]: event.target.value }))} placeholder="64-character TRON transaction hash" minLength={64} maxLength={64} required />
-              <button className="btn btn-outline" type="submit">Submit transaction hash</button>
-              {txidMessages[deposit.id] && <p className="muted-copy">{txidMessages[deposit.id]}</p>}
-            </form>}
 
             {deposit.provider_creation_uncertain && <div className="admin-warn" style={{ marginTop: 8 }}>Payment creation could not be confirmed. Do not request another deposit; contact support and include this reference.</div>}
             {deposit.status === 'manual_review' && !deposit.provider_creation_uncertain && <div className="admin-warn" style={{ marginTop: 8 }}>This deposit needs a manual check. Contact support and include this reference. Do not send again.</div>}
