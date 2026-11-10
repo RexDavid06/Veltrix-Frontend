@@ -174,20 +174,18 @@ describe('Deposit panel', () => {
     expect(container.textContent).not.toContain('account_number')
   })
 
-  it('always shows crypto, bank, and card options when bank is disabled', async () => {
+  it('shows crypto and bank options and removes card payment when bank is disabled', async () => {
     mockLoad([], configData({ bank: { enabled: false, currency: '', instructions: '' } }))
     await act(async () => root.render(<DepositPanel />))
     await settle()
     const tabs = Array.from(container.querySelectorAll('[role="tab"]'))
-    expect(tabs).toHaveLength(3)
+    expect(tabs).toHaveLength(2)
     expect(tabs.map((tab) => tab.getAttribute('aria-label') || tab.textContent)).toEqual(expect.arrayContaining([
       expect.stringContaining('Crypto'),
       expect.stringContaining('Bank Transfer'),
-      expect.stringContaining('Card Payment'),
     ]))
     expect(container.textContent).toContain('Bank Transfer')
-    expect(container.textContent).toContain('Card Payment')
-    expect(container.textContent).toContain('Coming soon')
+    expect(container.textContent).not.toMatch(/card\s+payment/i)
   })
 
   it('shows verified bank-transfer support guidance when bank is disabled', async () => {
@@ -203,16 +201,12 @@ describe('Deposit panel', () => {
     expect(navigate).toHaveBeenCalledWith('portal-support')
   })
 
-  it('keeps card payments visibly disabled and cannot start a payment', async () => {
+  it('does not render card payment entry points or card payment state', async () => {
     await act(async () => root.render(<DepositPanel />))
     await settle()
-    await clickButton('Card Payment')
-    expect(container.textContent).toContain('Card payments are not available yet')
-    const cardButton = Array.from(container.querySelectorAll('button'))
-      .find((button) => button.textContent.trim() === 'Card payment coming soon')
-    expect(cardButton).toBeTruthy()
-    expect(cardButton.disabled).toBe(true)
-    expect(container.querySelector('form')).toBeNull()
+    expect(container.textContent).not.toMatch(/card\s+payment/i)
+    expect(Array.from(container.querySelectorAll('button')).some((button) => /card\s+payment/i.test(button.textContent))).toBe(false)
+    expect(container.querySelectorAll('[role="tab"]')).toHaveLength(2)
     expect(api.post).not.toHaveBeenCalled()
   })
 
@@ -220,7 +214,7 @@ describe('Deposit panel', () => {
     mockLoad([], configData({ tron: { enabled: false, address: '' } }))
     await act(async () => root.render(<DepositPanel />))
     await settle()
-    expect(container.querySelectorAll('[role="tab"]')).toHaveLength(3)
+    expect(container.querySelectorAll('[role="tab"]')).toHaveLength(2)
     expect(container.textContent).toContain('deposit processing is not enabled')
     expect(container.querySelector('#depositAmount')).toBeNull()
     expect(container.querySelector('[data-testid="deposit-address"]')).toBeNull()
@@ -238,7 +232,6 @@ describe('Deposit panel', () => {
         error: 'Direct TRON deposits are configured, but new deposit requests are not open on this deployment.',
       },
       methods: [
-        { type: 'card', enabled: false },
         { type: 'bank_transfer', enabled: false },
         { type: 'crypto', configured: true, display_enabled: true, enabled: false, address: shared },
       ],
@@ -248,13 +241,13 @@ describe('Deposit panel', () => {
       : url === CONFIG_URL ? configData({ deposits_enabled: false }) : [] }))
     await act(async () => root.render(<DepositPanel />))
     await settle()
-    expect(container.querySelectorAll('[role="tab"]')).toHaveLength(3)
+    expect(container.querySelectorAll('[role="tab"]')).toHaveLength(2)
     await clickButton('USDT TRON (TRC-20)')
     await act(async () => waitForCondition(() => container.querySelector('[data-testid="deposit-address"]')))
     expect(container.textContent).toContain(shared)
     expect(container.textContent).toContain('Deposit processing and balance crediting are not enabled')
     expect(container.textContent).toContain('Bank Transfer')
-    expect(container.textContent).toContain('Card Payment')
+    expect(container.textContent).not.toMatch(/card\s+payment/i)
     expect(container.querySelector('#depositAmount')).toBeNull()
     expect(api.post).not.toHaveBeenCalled()
   })
@@ -272,7 +265,7 @@ describe('Deposit panel', () => {
     expect(container.textContent).toContain('Deposit configuration could not be loaded')
     expect(container.textContent).toContain('Deposit via Crypto')
     expect(container.querySelector('#depositAmount')).toBeNull()
-    expect(container.querySelectorAll('[role="tab"]')).toHaveLength(3)
+    expect(container.querySelectorAll('[role="tab"]')).toHaveLength(2)
   })
 
   it('disables payment requests and offers retry when deposit config fails', async () => {
@@ -284,7 +277,7 @@ describe('Deposit panel', () => {
     expect(container.textContent).toContain('Deposit configuration could not be loaded')
     expect(container.textContent).toContain('Retry')
     expect(container.querySelector('#depositAmount')).toBeNull()
-    expect(container.querySelectorAll('[role="tab"]')).toHaveLength(3)
+    expect(container.querySelectorAll('[role="tab"]')).toHaveLength(2)
   })
 
   it('uses bank method config for availability, currency, and instructions', async () => {
@@ -294,7 +287,6 @@ describe('Deposit panel', () => {
       methods: [
         { type: 'crypto', enabled: false },
         { type: 'bank_transfer', enabled: true, currency: 'GBP', instructions: 'Contact Veltrix admin for verified bank details.' },
-        { type: 'card', enabled: false, note: 'Coming soon.' },
       ],
     }))
     await act(async () => root.render(<DepositPanel />))

@@ -56,24 +56,22 @@ async function render() {
 }
 
 describe('crypto network selection', () => {
-  it('shows a crypto entry and the three supported networks while preserving bank and card options', async () => {
+  it('shows crypto and bank deposit options with the three supported networks', async () => {
     await render()
     expect(container.textContent).toContain('Deposit via Crypto')
     expect(container.textContent).toContain('USDT Ethereum (ERC-20)')
     expect(container.textContent).toContain('USDT TRON (TRC-20)')
     expect(container.textContent).toContain('USDT BNB Smart Chain (BEP-20)')
     expect(container.textContent).toContain('Bank Transfer')
-    expect(container.textContent).toContain('Card Payment')
+    expect(container.textContent).not.toMatch(/card\s+payment/i)
   })
 
-  it('keeps the bank support action and the disabled card panel available', async () => {
+  it('keeps the bank support action available and removes card payment entry points', async () => {
     await render()
     await click('Bank Transfer')
     expect(container.textContent).toContain('No bank account details are issued automatically')
-    await click('Card Payment')
-    expect(container.textContent).toContain('Card payments are not available yet')
-    const cardAction = Array.from(container.querySelectorAll('button')).find((button) => button.textContent.includes('Card payment coming soon'))
-    expect(cardAction.disabled).toBe(true)
+    expect(container.textContent).not.toMatch(/card\s+payment/i)
+    expect(Array.from(container.querySelectorAll('button')).some((button) => /card\s+payment/i.test(button.textContent))).toBe(false)
   })
 
   it('uses the exact API address for both copy and QR encoding', async () => {

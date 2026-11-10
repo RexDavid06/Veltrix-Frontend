@@ -207,12 +207,6 @@ export default function DepositPanel({ onNavigate }) {
             detail: 'Manual · verified details via support',
             badge: 'Contact support',
           },
-          {
-            id: 'card',
-            title: 'Card Payment',
-            detail: 'Debit or credit card',
-            badge: 'Coming soon',
-          },
         ].map((option) => (
           <button
             key={option.id}
@@ -295,17 +289,6 @@ export default function DepositPanel({ onNavigate }) {
             <button className="btn btn-primary" style={{ width: '100%' }} type="submit" disabled={loading}>{loading ? 'Preparing instructions…' : 'Request bank-transfer instructions'}</button>
           </form>
         )}
-      </section>}
-
-      {method === 'card' && <section role="tabpanel" aria-label="Card payment" style={{ marginTop: 16, padding: 14, border: '1px solid var(--line)', borderRadius: 5 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          <h4 style={{ margin: 0 }}>Card Payment</h4>
-          <span className="status">Coming soon</span>
-        </div>
-        <p className="muted-copy" style={{ margin: '8px 0 14px' }}>
-          Card payments are not available yet. No card details are collected and no payment can be started from this screen.
-        </p>
-        <button type="button" className="btn btn-outline" disabled style={{ opacity: .55, cursor: 'not-allowed' }}>Card payment coming soon</button>
       </section>}
 
       {error && <div className="admin-warn" role="alert">{error}</div>}
