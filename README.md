@@ -18,7 +18,7 @@ This branch (remove-demo-strings) contains wording changes to remove repetitive 
 Create a `.env` file in the project root (or set environment variables). Available env vars:
 
 - `VITE_API_URL` — Base URL for your backend. Defaults to `http://127.0.0.1:8000`. The frontend expects the backend API to expose endpoints under `/api` (the client normalises trailing slashes and `/api` suffixes).
-- `VITE_TELEGRAM_LINK` — Optional Telegram support link used by the Live Chat component.
+- `VITE_TELEGRAM_LINK` — Optional Telegram support link used by the Live Chat component. Defaults to the Telegram desk number `07074195975` (`https://t.me/+07074195975`) when unset.
 
 Example `.env` (not committed):
 

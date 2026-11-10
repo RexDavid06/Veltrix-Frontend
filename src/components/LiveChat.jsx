@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { TELEGRAM_DESK_LINK } from '../supportChannels'
+import { TELEGRAM_DESK_LINK, TELEGRAM_DESK_NUMBER } from '../supportChannels'
 
 const AUTO_ACK = 'Message received and added to your support conversation for our client desk to review. This is an automated confirmation — an account specialist will reply in this thread.'
 
@@ -229,9 +229,7 @@ export default function LiveChat({
         )}
 
         <div className="live-chat-footnote">
-          <div className="chat-option-heading">
-            {TELEGRAM_DESK_LINK ? 'Two ways to reach the client desk' : 'Reach the client desk'}
-          </div>
+          <div className="chat-option-heading">Two ways to reach the client desk</div>
           <div className="chat-option-list">
             <div className="chat-option chat-option-current">
               <span className="chat-option-name">1 · In-app chat</span>
@@ -240,20 +238,18 @@ export default function LiveChat({
               </span>
               <span className="chat-option-state">Active now</span>
             </div>
-            {TELEGRAM_DESK_LINK && (
-              <a
-                className="chat-option"
-                href={TELEGRAM_DESK_LINK}
-                target="_blank"
-                rel="noreferrer"
-              >
-                <span className="chat-option-name">2 · Telegram</span>
-                <span className="chat-option-desc">
-                  Continue on Telegram. Opens a direct conversation with our support desk — no number to copy.
-                </span>
-                <span className="chat-option-state">Open Telegram ↗</span>
-              </a>
-            )}
+            <a
+              className="chat-option"
+              href={TELEGRAM_DESK_LINK}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <span className="chat-option-name">2 · Telegram</span>
+              <span className="chat-option-desc">
+                Continue on Telegram. Message our support desk at {TELEGRAM_DESK_NUMBER} — opens a direct conversation, no copy needed.
+              </span>
+              <span className="chat-option-state">{TELEGRAM_DESK_NUMBER} · Open Telegram ↗</span>
+            </a>
           </div>
           <button
             type="button"
